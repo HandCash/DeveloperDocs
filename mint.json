@@ -100,7 +100,7 @@
         "wallet-api/custom-verification-email",
         "wallet-api/on-ramps"
       ]
-    },
+    }
   ],
   "footerSocials": {
     "x": "https://twitter.com/handcashapp",
