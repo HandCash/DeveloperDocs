@@ -9,9 +9,9 @@ description: 'Manage business payouts and automated payment systems'
 Read this documentation then integrate business payouts from the v3 SDK: https://docs.handcash.io/v3/business-wallet/payouts
 ```
 
-## Send Business Payouts
+## Business Wallet Authentication
 
-### Basic Payout
+Business payouts require a business wallet authentication token. You need to obtain this token through the Handcash Developer Dashboard for your business wallet.
 
 ```typescript
 import { getInstance, Connect } from '@handcash/sdk';
@@ -21,17 +21,28 @@ const sdk = getInstance({
   appSecret: 'your-app-secret'
 });
 
+// Get business wallet client using business auth token
+const businessClient = sdk.getAccountClient('<BUSINESS_WALLET_AUTH_TOKEN>');
+```
+
+## Send Business Payouts
+
+### Basic Payout
+
+```typescript
 // Send payout from business wallet
 const payout = await Connect.pay({
-  client: sdk.client,
-  payments: [
-    {
-      destination: 'recipient@handcash.io',
-      amount: 0.001,
-      currency: 'BSV'
-    }
-  ],
-  description: 'Business payout'
+  client: businessClient,
+  body: {
+    instrumentCurrencyCode: 'BSV',
+    denominationCurrencyCode: 'USD',
+    receivers: [
+      {
+        destination: 'recipient@handcash.io',
+        sendAmount: 0.01
+      }
+    ]
+  }
 });
 ```
 
@@ -40,20 +51,21 @@ const payout = await Connect.pay({
 ```typescript
 // Send multiple payouts
 const bulkPayout = await Connect.pay({
-  client: sdk.client,
-  payments: [
-    {
-      destination: 'user1@handcash.io',
-      amount: 0.001,
-      currency: 'BSV'
-    },
-    {
-      destination: 'user2@handcash.io',
-      amount: 0.002,
-      currency: 'BSV'
-    }
-  ],
-  description: 'Bulk business payouts'
+  client: businessClient,
+  body: {
+    instrumentCurrencyCode: 'BSV',
+    denominationCurrencyCode: 'USD',
+    receivers: [
+      {
+        destination: 'user1@handcash.io',
+        sendAmount: 0.01
+      },
+      {
+        destination: 'user2@handcash.io',
+        sendAmount: 0.02
+      }
+    ]
+  }
 });
 ```
 
@@ -64,7 +76,7 @@ const bulkPayout = await Connect.pay({
 ```typescript
 // Get business wallet balance
 const balance = await Connect.getSpendableBalances({
-  client: sdk.client
+  client: businessClient
 });
 
 console.log('Business wallet balance:', balance);
@@ -75,9 +87,35 @@ console.log('Business wallet balance:', balance);
 ```typescript
 // Get current exchange rates
 const rates = await Connect.getExchangeRate({
-  client: sdk.client,
-  currencyCode: 'USD'
+  client: businessClient,
+  path: { currencyCode: 'USD' }
 });
 
-console.log('USD to BSV rate:', rates.rate);
+console.log('USD to BSV rate:', rates.data?.rate);
+```
+
+## Error Handling
+
+```typescript
+try {
+  const payout = await Connect.pay({
+    client: businessClient,
+    body: {
+      instrumentCurrencyCode: 'BSV',
+      denominationCurrencyCode: 'USD',
+      receivers: [
+        {
+          destination: 'recipient@handcash.io',
+          sendAmount: 0.01
+        }
+      ]
+    }
+  });
+  
+  if (payout.data) {
+    console.log('Payout successful:', payout.data);
+  }
+} catch (error) {
+  console.error('Payout failed:', error.message);
+}
 ```
