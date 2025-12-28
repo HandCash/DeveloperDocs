@@ -1,0 +1,77 @@
+---
+title: Burn an Item
+description: 'Permanently destroy items with HandCash Connect'
+---
+
+<Warning>
+**⚠️ Legacy SDK Documentation**
+
+This documentation uses our older SDK (`@handcash/handcash-connect`), but the v3 SDK does not support this feature yet.
+</Warning>
+
+# Burn an Item
+
+Permanently destroy items using the HandCash Connect SDK.
+
+## Prerequisites
+
+- User must be connected with the `ITEMS_WRITE` permission
+- Your application must be the creator of the item
+
+## Setup
+
+```typescript
+import { HandCashConnect } from '@handcash/handcash-connect';
+
+const handCashConnect = new HandCashConnect({
+  appId: '<app-id>',
+  appSecret: '<secret>',
+});
+
+const account = handCashConnect.getAccountFromAuthToken(token);
+```
+
+## Burn Items
+
+Burn one or more items permanently:
+
+```typescript
+// Burn a single item
+await account.items.burnItems({
+  items: [{ id: '<ITEM_ID>' }],
+});
+
+// Burn multiple items
+await account.items.burnItems({
+  items: [
+    { id: '<ITEM_ID_1>' },
+    { id: '<ITEM_ID_2>' },
+    { id: '<ITEM_ID_3>' }
+  ],
+});
+```
+
+## Important Notes
+
+- Burning an item permanently destroys it - this action cannot be undone
+- Only the app that created the item can burn it
+- Use item IDs (not origins) for burning
+- Burning is useful for consumable items, crafting systems, or removing items from circulation
+
+## Error Handling
+
+```typescript
+try {
+  await account.items.burnItems({
+    items: [{ id: '<ITEM_ID>' }],
+  });
+  console.log('Item burned successfully');
+} catch (error) {
+  if (error.message.includes('Item not found')) {
+    console.log('Item does not exist or user does not own it');
+  } else if (error.message.includes('Permission denied')) {
+    console.log('User needs burn permission');
+  }
+}
+```
+
