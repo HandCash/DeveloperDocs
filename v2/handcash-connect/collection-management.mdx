@@ -1,0 +1,100 @@
+---
+title: Collection Management
+description: 'Create and manage collections for organizing digital items (Fallback for v3)'
+---
+
+<Warning>
+**⚠️ Fallback Documentation - Use v3 When Possible**
+
+This is fallback documentation for collection management not yet available in v3 SDK. 
+For item creation available in v3, use the [v3 documentation](/v3/items/creation).
+</Warning>
+
+# Collection Management
+
+This guide demonstrates how to create and manage collections using the HandCash Connect SDK. Collections are used to organize your digital items.
+
+## Setup
+
+```typescript
+import { HandCashMinter } from '@handcash/handcash-connect';
+
+const handCashMinter = HandCashMinter.fromAppCredentials({
+  appId: process.env.HANDCASH_APP_ID,
+  authToken: process.env.HANDCASH_AUTH_TOKEN,
+  appSecret: process.env.HANDCASH_APP_SECRET
+});
+```
+
+## Create a Collection
+
+To create a collection, use the `createCollectionOrder` method:
+
+```typescript
+async function createCollection() {
+  const collectionOrder = await handCashMinter.createCollectionOrder({
+    name: 'My Game Collection',
+    description: 'A collection of digital items for my game',
+    mediaDetails: {
+      image: {
+        url: 'https://example.com/collection-image.png',
+        contentType: 'image/png',
+      },
+    },
+  });
+
+  console.log('Collection order created:', collectionOrder.id);
+  
+  // Wait for collection to be created (typically takes less than 5 seconds)
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  
+  // Get the created collection
+  const items = await handCashMinter.getOrderItems(collectionOrder.id);
+  const collectionId = items[0].id;
+  
+  console.log(`Collection Created. ID: ${collectionId}`);
+  return collectionId;
+}
+```
+
+### Collection Order Response
+
+```typescript
+interface CollectionOrderResponse {
+  id: string;
+  user: string; // Your business wallet ID
+  app: string;
+  type: 'collection';
+  status: 'pending' | 'completed' | 'failed';
+  pendingInscriptions: number;
+  error?: string;
+}
+```
+
+## Get Collection Details
+
+Retrieve details of an existing collection:
+
+```typescript
+async function getCollection(collectionId: string) {
+  // Collections are items themselves, so you can retrieve them like any other item
+  const collection = await handCashMinter.getItem(collectionId);
+  console.log('Collection details:', collection);
+  return collection;
+}
+```
+
+## Strategy
+
+- **Create a single top-level collection** for your app to keep things organized
+- **Use item attributes** to categorize sub-types (rarity, season, set, etc.) within your collection
+- **Keep immutable metadata minimal** and reference off-chain metadata via URLs for flexibility
+- **Save your collection ID** after creation - you'll need it when creating items
+
+## Best Practices
+
+1. Create your collection once during app initialization and store the collection ID
+2. Use descriptive names and descriptions for your collections
+3. Provide high-quality images for your collection media
+4. Use item attributes to organize items within a collection rather than creating multiple collections
+

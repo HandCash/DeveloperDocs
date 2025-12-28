@@ -47,20 +47,29 @@
       ]
     },
     {
-      "group": "v2 / Handcash Connect",
+      "group": "v2 / Fallback - Item Operations",
       "pages": [
-        "v2/handcash-connect/getting-started",
-        "v2/handcash-connect/account",
-        "v2/handcash-connect/wallet"
+        "v2/handcash-connect/send-item",
+        "v2/handcash-connect/manage-items"
       ]
     },
     {
-      "group": "v2 / Handcash Connect (v3 API)",
+      "group": "v2 / Fallback - Collection & Orders",
       "pages": [
-        "v2/handcash-connect/profile",
-        "v2/handcash-connect/permissions",
-        "v2/handcash-connect/read-balance",
+        "v2/handcash-connect/collection-management",
+        "v2/handcash-connect/manage-item-orders"
+      ]
+    },
+    {
+      "group": "v2 / Fallback - Friends",
+      "pages": [
         "v2/handcash-connect/friends"
+      ]
+    },
+    {
+      "group": "v2 / Fallback - Payment Requests",
+      "pages": [
+        "v2/handcash-connect/manage-payment-request"
       ]
     },
     {

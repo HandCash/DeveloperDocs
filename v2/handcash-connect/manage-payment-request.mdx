@@ -1,0 +1,184 @@
+---
+title: Manage Payment Requests
+description: 'Edit, list, and delete payment requests (Fallback for v3)'
+---
+
+<Warning>
+**⚠️ Fallback Documentation - Use v3 When Possible**
+
+This is fallback documentation with detailed REST API examples for payment request management. 
+For basic payment request features available in v3, use the [v3 documentation](/handcash-pay/manage-payment-request).
+</Warning>
+
+## Edit Payment Request
+
+You can modify existing payment requests to update certain properties.
+
+### API Endpoint
+
+- **Method**: PUT
+- **URL**: `https://cloud.handcash.io/v3/paymentRequests/{id}`
+
+Replace `{id}` with the ID of the payment request you want to edit.
+
+### Authentication
+
+Include your app credentials in the request headers:
+
+```
+App-Id: your-app-id
+App-Secret: your-app-secret
+```
+
+### Updatable Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `product.name` | String | The name of the product |
+| `product.description` | String | The description of the product |
+| `product.imageUrl` | String | URL of the product image |
+| `decreaseRemainingUnits` | Integer | Number of units to decrease from `remainingUnits` |
+| `redirectUrl` | String | URL to redirect users after successful payment |
+| `notifications.webhook.webhookUrl` | String | URL for receiving webhook notifications |
+| `notifications.webhook.customParameters` | Object | Custom parameters to include in webhook notifications |
+| `notifications.email` | String | Email address to receive payment notifications |
+| `expirationInSeconds` | Integer | Number of seconds until the payment request expires |
+
+### Example: Edit Product Name
+
+```bash
+curl --request PUT \
+     --url https://cloud.handcash.io/v3/paymentRequests/66a2a051d2f2ae72b1f9dd89 \
+     --header 'Accept: application/json' \
+     --header 'Content-Type: application/json' \
+     --header 'App-Id: your-app-id' \
+     --header 'App-Secret: your-app-secret' \
+     --data '{
+       "product": {
+         "name": "Updated Haste Hat"
+       }
+     }'
+```
+
+### Example: Decrease Total Supply
+
+*Note: This is only allowed with payment requests that have the `limit` expiration type.*
+
+```bash
+curl --request PUT \
+     --url https://cloud.handcash.io/v3/paymentRequests/66a2a051d2f2ae72b1f9dd89 \
+     --header 'Accept: application/json' \
+     --header 'Content-Type: application/json' \
+     --header 'App-Id: your-app-id' \
+     --header 'App-Secret: your-app-secret' \
+     --data '{
+       "decreaseRemainingUnits": 2
+     }'
+```
+
+### Important Notes for Editing
+
+- You can only decrease the remaining units for payment requests with the `limit` expiration type.
+- Ensure that you're only updating the fields that you intend to change.
+- The `id` in the URL must match an existing payment request associated with your app.
+- Any fields not included in the request body will remain unchanged.
+
+## List All Payment Requests
+
+Retrieve a list of existing payment requests for your authenticated app.
+
+### API Endpoint
+
+- **Method**: GET
+- **URL**: `https://cloud.handcash.io/v3/paymentRequests`
+
+### Example
+
+```bash
+curl --request GET \
+     --url https://cloud.handcash.io/v3/paymentRequests \
+     --header 'Accept: application/json' \
+     --header 'app-id: your-app-id' \
+     --header 'app-secret: your-app-secret'
+```
+
+### Response
+
+The response will be a JSON object containing an array of payment request objects:
+
+```json
+{
+  "items": [
+    {
+      "id": "9ac9182acae19902",
+      "paymentRequestUrl": "https://pay.handcash.io/9ac9182acae19902",
+      "paymentRequestQrCodeUrl": "https://pay.handcash.io/api/paymentPreview/qr/9ac9182acae19902",
+      "isEnabled": true,
+      "product": {
+        "name": "Jump · Micro",
+        "description": "Play a game to Jump in the Micro division.",
+        "imageUrl": "https://haste-developer-portal-production-game-art.s3.amazonaws.com/Jump/gameicon.png"
+      },
+      "receivers": [
+        {
+          "sendAmount": 0.08,
+          "currencyCode": "USD",
+          "destination": "imaWinner"
+        },
+        {
+          "sendAmount": 0.02,
+          "currencyCode": "USD",
+          "destination": "haste"
+        }
+      ],
+      "requestedUserData": ["paymail"],
+      "customParameters": {
+        "gameId": "9ac9182acae19902"
+      },
+      "notifications": {
+        "webhook": {
+          "webhookUrl": "https://app.hastearcade.com/wehbooks/handcash",
+          "customParameters": {
+            "gameId": "9ac9182acae19902"
+          },
+        },
+        "email": "payments@haste.com"
+      },
+      "redirectUrl": "https://app.hastearcade.com/games/ec04e9ca-71b6-4fb2-abb0-b6a2da072fb9",
+      "expirationType": "never",
+      "expiresAt": 1650558683
+    }
+  ]
+}
+```
+
+## Delete a Payment Request
+
+Delete a payment request that is no longer valid to avoid potential customer confusion.
+
+### API Endpoint
+
+- **Method**: DELETE
+- **URL**: `https://cloud.handcash.io/v3/paymentRequests/{id}`
+
+Replace `{id}` with the ID of the payment request you want to delete.
+
+### Example
+
+```bash
+curl --request DELETE \
+     --url https://cloud.handcash.io/v3/paymentRequests/9ac9182acae19902 \
+     --header 'app-id: your-app-id' \
+     --header 'app-secret: your-app-secret'
+```
+
+### Response
+
+A successful deletion will return a 200 OK status code.
+
+## Best Practices
+
+1. Regularly review and clean up outdated payment requests.
+2. Use meaningful names and descriptions for your payment requests to easily identify them when listing.
+3. When editing a payment request, only include the fields you want to change to avoid unintended modifications.
+4. Always verify the `id` of the payment request you're modifying or deleting to prevent accidental changes to the wrong request.

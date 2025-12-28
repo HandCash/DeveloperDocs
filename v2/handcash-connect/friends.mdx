@@ -1,10 +1,138 @@
 ---
 title: Friends
-description: 'Reading user friends in v3'
+description: 'Retrieve and manage user friends with HandCash Connect (Fallback for v3)'
 ---
 
-<Note>
-The Friends endpoint is not available in the public v3 SDK at this time. This page will be updated when the v3 API is released. For now, there is no supported v3 method to fetch friends.
-</Note>
+<Warning>
+**⚠️ Fallback Documentation - Not Available in v3**
 
+This is fallback documentation for the dedicated `getFriends()` method which is not available in v3 SDK. 
+Use the v2 HandCash Connect SDK (`@handcash/handcash-connect`) for friends functionality.
+</Warning>
+
+# Friends
+
+The Friends API allows you to retrieve a list of the user's friends and their public profiles. This requires the `FRIENDS` permission.
+
+## Prerequisites
+
+- User must have authorized your app with the `FRIENDS` permission
+- User account must be initialized with an authentication token
+
+## Setup
+
+```javascript
+import HandcashConnect from '@handcash/handcash-connect';
+
+const handCashConnect = new HandcashConnect({
+  appId: 'YOUR_APP_ID',
+  appSecret: 'YOUR_APP_SECRET',
+});
+
+const account = handCashConnect.getAccountFromAuthToken('<authToken>');
+```
+
+## Get Friends
+
+Retrieves a list of the user's friends and their public profiles.
+
+```javascript
+async getFriends(): Promise<UserPublicProfile[]>
+```
+
+**Returns:** A promise that resolves to an array of public profiles of the user's friends.
+
+**Example:**
+
+```javascript
+const friends = await account.profile.getFriends();
+console.log(`You have ${friends.length} friends.`);
+
+friends.forEach(friend => {
+  console.log(`Friend: ${friend.displayName} (@${friend.handle})`);
+});
+```
+
+## Response Type
+
+Each friend in the array is a `UserPublicProfile` object with the following structure:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Unique identifier for the user |
+| handle | string | User's HandCash handle |
+| paymail | string | User's paymail address |
+| displayName | string | User's display name |
+| avatarUrl | string | URL of the user's avatar image |
+| createdAt | Date | Date when the profile was created |
+
+**Example Response:**
+
+```javascript
+[
+  {
+    id: "507f1f77bcf86cd799439011",
+    handle: "satoshi",
+    paymail: "satoshi@handcash.io",
+    displayName: "Satoshi Nakamoto",
+    avatarUrl: "https://example.com/avatar.png",
+    createdAt: new Date("2023-01-01T00:00:00.000Z")
+  },
+  {
+    id: "507f1f77bcf86cd799439012",
+    handle: "alice",
+    paymail: "alice@handcash.io",
+    displayName: "Alice",
+    avatarUrl: "https://example.com/alice.png",
+    createdAt: new Date("2023-02-15T00:00:00.000Z")
+  }
+]
+```
+
+## Permissions
+
+The `getFriends()` method requires the `FRIENDS` permission. Users must grant this permission when authorizing your app.
+
+To check if a user has granted the `FRIENDS` permission:
+
+```javascript
+const permissionsInfo = await account.profile.getPermissionsInfo();
+const hasFriendsPermission = permissionsInfo.items.includes('FRIENDS');
+
+if (hasFriendsPermission) {
+  const friends = await account.profile.getFriends();
+} else {
+  console.log('User has not granted FRIENDS permission');
+}
+```
+
+## Error Handling
+
+```javascript
+try {
+  const friends = await account.profile.getFriends();
+  // Process friends list
+} catch (error) {
+  if (error.message.includes('FRIENDS permission')) {
+    console.error('User has not granted FRIENDS permission');
+    // Redirect user to re-authorize with FRIENDS permission
+  } else {
+    console.error('Error fetching friends:', error);
+  }
+}
+```
+
+## Use Cases
+
+- Display user's friends list in your application
+- Show friend activity or status
+- Enable friend-to-friend features
+- Build social features around HandCash connections
+
+## Important Notes
+
+- The `FRIENDS` permission must be requested during the initial authorization flow
+- If a user hasn't granted the `FRIENDS` permission, the method will throw an error
+- Friends data is read-only - you cannot add or remove friends through the API
+- The friends list reflects the user's current HandCash friends
 

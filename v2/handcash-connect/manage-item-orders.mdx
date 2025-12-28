@@ -1,0 +1,122 @@
+---
+title: Item Orders
+description: 'Manage Item Orders in HandCash (Fallback for v3)'
+---
+
+<Warning>
+**⚠️ Fallback Documentation - Use v3 When Possible**
+
+This is fallback documentation for item order management not yet available in v3 SDK. 
+For item creation available in v3, use the [v3 documentation](/v3/items/creation).
+</Warning>
+
+# Managing Item Orders
+
+This guide demonstrates how to manage item orders using the HandCash SDK, including retrieving order details and fetching items associated with an order.
+
+## Get Order Details
+
+Retrieve details of an existing item order using its ID or the UID provided during creation.
+
+```typescript
+import { HandCashMinter } from '@handcash/handcash-connect';
+
+const handCashMinter = HandCashMinter.fromAppCredentials({
+  appId: process.env.HANDCASH_APP_ID,
+  authToken: process.env.HANDCASH_AUTH_TOKEN,
+  appSecret: process.env.HANDCASH_APP_SECRET
+});
+
+async function getOrderDetails(orderId: string) {
+  try {
+    const order = await handCashMinter.getOrder(orderId);
+    console.log('Order details:', order);
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+  }
+}
+
+// Usage
+getOrderDetails('your-order-id');
+```
+
+Example console output:
+
+```javascript
+Order details: {
+  id: "65a4b2c8f30153e012173080",
+  type: "collectionItem",
+  status: "completed",
+  collectionOrdinalId: "65a4b2c8f30153e012173081",
+  pendingInscriptions: 0
+}
+```
+
+## Get Order Items
+
+Retrieve the items associated with a completed order.
+
+```typescript
+async function getOrderItems(orderId: string) {
+  try {
+    const items = await handCashMinter.getOrderItems(orderId);
+    console.log('Order items:', items);
+  } catch (error) {
+    console.error('Error fetching order items:', error);
+  }
+}
+
+// Usage
+getOrderItems('your-completed-order-id');
+```
+
+Example console output:
+
+```javascript
+Order items: [
+  {
+    id: "65a4b2c8f30153e012173082",
+    origin: "65a4b2c8f30153e012173083",
+    name: "Legendary Sword",
+    description: "A sword forged in dragon fire",
+    imageUrl: "https://example.com/sword.webp",
+    multimediaUrl: "https://example.com/sword-3d.glb",
+    multimediaType: "model/gltf-binary",
+    rarity: "Legendary",
+    color: "#FF4500",
+    attributes: [
+      { name: "Attack", value: "100", displayType: "number" },
+      { name: "Element", value: "Fire", displayType: "string" }
+    ],
+    collection: {
+      id: "65a4b2c8f30153e012173084",
+      name: "Epic Weapons",
+      description: "Collection of legendary weapons",
+      app: {
+        id: "65a4b2c8f30153e012173085",
+        name: "Fantasy RPG",
+        iconUrl: "https://example.com/game-icon.png"
+      },
+      origin: "65a4b2c8f30153e012173086",
+      imageUrl: "https://example.com/collection-image.png",
+    },
+    user: {
+      alias: "dragonslayer",
+      displayName: "Dragon Slayer",
+      profilePictureUrl: "https://example.com/user-avatar.png"
+    },
+    app: {
+      id: "65a4b2c8f30153e012173085",
+      name: "Fantasy RPG",
+      iconUrl: "https://example.com/game-icon.png"
+    },
+    itemListing: null
+  }
+]
+```
+
+## Important Notes
+
+1. The `getOrder` method can be used with either the order ID or the UID provided during order creation.
+2. The `getOrderItems` method only works for completed orders. Ensure the order status is 'completed' before calling this method.
+3. The order details include a `status` field that indicates the current state of the order. Monitor this field to track the progress of your order.

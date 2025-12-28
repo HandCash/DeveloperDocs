@@ -1,0 +1,126 @@
+---
+title: Send an Item
+description: 'Transfer items between users with HandCash Connect (Fallback for v3)'
+---
+
+<Warning>
+**⚠️ Fallback Documentation - Use v3 When Possible**
+
+This is fallback documentation for item transfers not yet available in v3 SDK. 
+For features available in v3, use the [v3 documentation](/v3/items/inventory).
+</Warning>
+
+# Send an Item
+
+Transfer items between HandCash users or to external wallets using the HandCash Connect SDK.
+
+## Prerequisites
+
+- User must be connected with the `ITEMS_WRITE` permission
+- Your application must be the creator of the item for transfers
+
+## Setup
+
+```typescript
+import { HandCashConnect } from '@handcash/handcash-connect';
+
+const handCashConnect = new HandCashConnect({
+  appId: '<app-id>',
+  appSecret: '<secret>',
+});
+
+const account = handCashConnect.getAccountFromAuthToken(token);
+```
+
+## Transfer Items
+
+Transfer items to another HandCash user or an external wallet:
+
+```typescript
+// Transfer to another HandCash user via handle
+const result = await account.items.transfer({
+  destinationsWithOrigins: [
+    {
+      destination: 'satoshi',
+      origins: ['27c02c976adbf0acb212b850ce0c0b1b796de0a646c93304f94f2dc3249cad25_33']
+    }
+  ]
+});
+
+// Transfer to an external wallet via address
+const externalResult = await account.items.transfer({
+  destinationsWithOrigins: [
+    {
+      destination: '18jMjdXWXYFNU2waM8wCepTiUzuiQ8gZHt',
+      origins: ['27c02c976adbf0acb212b850ce0c0b1b796de0a646c93304f94f2dc3249cad25_33']
+    }
+  ]
+});
+
+console.log('Transaction ID:', result.transactionId);
+```
+
+### Transfer Multiple Items to Same Destination
+
+```typescript
+const result = await account.items.transfer({
+  destinationsWithOrigins: [
+    {
+      destination: 'recipient-handle',
+      origins: [
+        'item-origin-1',
+        'item-origin-2',
+        'item-origin-3'
+      ]
+    }
+  ]
+});
+```
+
+### Transfer Items to Multiple Destinations
+
+```typescript
+const result = await account.items.transfer({
+  destinationsWithOrigins: [
+    {
+      destination: 'user1',
+      origins: ['item-origin-1', 'item-origin-2']
+    },
+    {
+      destination: 'user2',
+      origins: ['item-origin-3']
+    }
+  ]
+});
+```
+
+## Important Notes
+
+- For item transfers, ensure your application has the necessary permissions and is the creator of the item
+- The `origins` array contains item origin IDs (the unique identifier for each item instance)
+- You can transfer to HandCash handles or external Bitcoin addresses
+- The method returns a transaction ID upon successful transfer
+
+## Error Handling
+
+```typescript
+try {
+  const result = await account.items.transfer({
+    destinationsWithOrigins: [
+      {
+        destination: 'recipient-handle',
+        origins: ['item-origin-id']
+      }
+    ]
+  });
+  console.log('Transfer successful:', result.transactionId);
+} catch (error) {
+  if (error.message.includes('Item not found')) {
+    console.log('Item does not exist or user does not own it');
+  } else if (error.message.includes('Invalid destination')) {
+    console.log('Recipient handle or address is invalid');
+  } else if (error.message.includes('Permission denied')) {
+    console.log('User needs transfer permission');
+  }
+}
+```

@@ -1,0 +1,148 @@
+---
+title: Lock and Unlock Items
+description: 'Lock and unlock items to prevent transfers (Fallback for v3)'
+---
+
+<Warning>
+**⚠️ Fallback Documentation - Use v3 When Possible**
+
+This is fallback documentation for item locking features not yet available in v3 SDK. 
+For inventory management available in v3, use the [v3 documentation](/v3/items/inventory).
+</Warning>
+
+# Lock and Unlock Items
+
+Prevent items from being transferred by locking them, or unlock them to allow transfers again.
+
+## Prerequisites
+
+- User must be connected with the `ITEMS_WRITE` permission
+- Your application must be the creator of the item
+
+## Setup
+
+```typescript
+import { HandCashConnect } from '@handcash/handcash-connect';
+
+const handCashConnect = new HandCashConnect({
+  appId: '<app-id>',
+  appSecret: '<secret>',
+});
+
+const account = handCashConnect.getAccountFromAuthToken(token);
+```
+
+## Lock Items
+
+You can prevent an item from being transferred by locking it:
+
+```typescript
+const origin = '0a3eb965a039cb15e731e2b1b2a67b7c024e6a6b59c1f7c32a9cec1d6b5bb7e7_48';
+await account.items.lockItems(origin);
+```
+
+### Lock Multiple Items
+
+```typescript
+const origins = [
+  'item-origin-1',
+  'item-origin-2',
+  'item-origin-3'
+];
+
+for (const origin of origins) {
+  await account.items.lockItems(origin);
+}
+```
+
+## Unlock Items
+
+Later on, you can unlock items to allow transfers again:
+
+```typescript
+const origin = '0a3eb965a039cb15e731e2b1b2a67b7c024e6a6b59c1f7c32a9cec1d6b5bb7e7_48';
+await account.items.unlockItems(origin);
+```
+
+### Unlock Multiple Items
+
+```typescript
+const origins = [
+  'item-origin-1',
+  'item-origin-2',
+  'item-origin-3'
+];
+
+for (const origin of origins) {
+  await account.items.unlockItems(origin);
+}
+```
+
+## Get Locked Items
+
+Retrieve a list of locked items:
+
+```typescript
+const lockedItems = await account.items.getLockedItems({
+  from: 0,
+  to: 10,
+  fetchAttributes: true,
+});
+
+console.log(`User has ${lockedItems.length} locked items`);
+```
+
+### Parameters
+
+- `from`: Starting index (default: 0)
+- `to`: Ending index (default: 10)
+- `fetchAttributes`: Whether to include item attributes (default: false)
+
+## Use Cases
+
+### Lock Valuable Items
+
+```typescript
+async function lockValuableItems() {
+  // Get user's inventory (use v3 Connect.getItemsInventory for this)
+  // Filter for valuable items
+  const valuableOrigins = [
+    'legendary-item-origin-1',
+    'epic-item-origin-2'
+  ];
+  
+  for (const origin of valuableOrigins) {
+    await account.items.lockItems(origin);
+  }
+  
+  console.log(`Locked ${valuableOrigins.length} valuable items`);
+}
+```
+
+### Unlock Before Transfer
+
+```typescript
+async function transferItem(itemOrigin: string, destination: string) {
+  // Unlock item first
+  await account.items.unlockItems(itemOrigin);
+  
+  // Then transfer
+  const result = await account.items.transfer({
+    destinationsWithOrigins: [
+      {
+        destination: destination,
+        origins: [itemOrigin]
+      }
+    ]
+  });
+  
+  return result.transactionId;
+}
+```
+
+## Important Notes
+
+- Locked items cannot be transferred until they are unlocked
+- Only the app that created the item can lock/unlock it
+- Locking is useful for preventing accidental transfers of valuable items
+- Use `getLockedItems()` to check which items are currently locked
