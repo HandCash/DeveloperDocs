@@ -1,0 +1,55 @@
+---
+title: Setup
+description: 'Request payments of exact amounts for your store and get notified on payment'
+---
+
+# Introduction
+
+Payment Requests are a powerful solution that allows your products to accept payments without requiring users to connect their HandCash account to your app. This is in contrast to HandCash Connect, which requires a deeper integration.
+
+You should consider using Payment Requests when:
+
+- You need to accept casual payments in your app, as opposed to high-frequency payments.
+- You don't need HandCash as a login system, but just need its payment capability.
+- You want to offer an alternative checkout flow to your existing payment methods.
+
+![Payment Request](/images/payment-request-scan.png)
+User is presented a QR code or a link 
+
+![Payment Request](/images/payment-request.png)
+User is redirected to mobile app or web wallet to pay the request
+
+# Use Cases
+
+Payment Requests are designed to be simple to integrate while offering powerful features through its API and webhook system. This combination of simplicity and flexibility makes it ideal for various use cases:
+
+1. **Paywalls**: Allow users to pay to unlock content from your app, such as playing a game, purchasing items, or reading an article. Your server will be notified every time a payment is successfully completed.
+
+2. **Checkouts**: Accept payments for your business with ease.
+
+3. **Purchase Single Items**: Generate individual and reusable payment links for each of your app items.
+
+## Real-World Example
+
+The [HandCash Items market](https://market.handcash.io) is built on top of Payment Requests. In this implementation:
+
+1. Every time an item is listed, a payment request is created for that item.
+2. When a purchase is made, the purchaser is transferred the item.
+
+This demonstrates how Payment Requests can be used to create a robust marketplace system.
+
+# Getting Started
+
+To start using Payment Requests in your application, follow these steps:
+
+1. **Create a HandCash Developer Account**: 
+   Visit [https://dashboard.handcash.io](https://dashboard.handcash.io) and sign up for a developer account.
+
+2. **Create an App**:
+   Once logged in to the developer dashboard, create a new app.
+
+3. **Obtain Credentials**:
+   After creating your app, you'll receive an `appSecret` and `appId`. These credentials are crucial for authenticating your requests to the Payment Request API.
+
+4. **Integrate the API**:
+   Use your `appSecret` and `appId` to start triggering payments in your application. Refer to the [developer dashboard guide](/developer=dashboard) for instructions for creating an app.

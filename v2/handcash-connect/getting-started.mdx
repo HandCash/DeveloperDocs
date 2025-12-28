@@ -1,0 +1,202 @@
+---
+title: Getting Started
+description: 'Integrate user wallets, trigger payments, and manage digital items with Handcash Connect.'
+---
+
+# Handcash Connect
+
+Enable users to connect their Handcash wallets to your application, trigger payments, and manage digital items on their behalf. Handcash Connect offers seamless integration of blockchain functionalities, enhancing your application's capabilities and user experience.
+
+## Get Your App Credentials
+
+Before you begin, obtain your application credentials by following the [Getting Started with the Developer Dashboard](/developer-dashboard) guide. These credentials are essential for integrating Handcash services into your application.
+
+## Install the SDK
+
+To start using Handcash Connect, install the SDK via npm:
+
+```bash
+npm install @handcash/handcash-connect
+```
+
+## Import and Initialize the Module
+
+Import the Handcash Connect module and initialize it using your `appId` and `appSecret`:
+
+```javascript
+import HandcashConnect from '@handcash/handcash-connect';
+
+const handCashConnect = new HandcashConnect({
+  appId: 'YOUR_APP_ID',
+  appSecret: 'YOUR_APP_SECRET',
+});
+```
+
+## Account Access – Overview
+
+There are two main ways of accessing HandCash accounts:
+
+#### <u>The user does not have a HandCash account</u>
+
+In this context, you can redirect the user to HandCash to create a new account.
+
+Alternatively, you can create a new HandCash account for them. Follow the *Account Creation Flow* for more details.
+
+#### <u>The user does have a HandCash account</u>
+
+In this context, you must redirect the user to HandCash to authorize your app. After the user grants permissions to your application, they will get redirected back to your application and you will receive an access token that you can use in the SDK.
+
+Follow the *Authentication Flow* for more details.
+
+## Account Creation Flow
+
+To create a new HandCash account programmatically, you'll need to follow these steps:
+
+1. Request an email verification code
+
+2. Generate an authentication key pair
+
+3. Verify the email code
+
+4. Create the account
+
+Here's a complete example:
+
+```typescript
+// 1. Request an email verification code
+const email = 'app.review@handcash.io';
+const requestId = await handCashConnect.requestEmailCode(email);
+
+// 2. Generate an authentication key pair
+const keyPair = handCashConnect.generateAuthenticationKeyPair();
+
+// 3. Verify the email code
+const verificationCode = '12345678';
+await handCashConnect.verifyEmailCode(requestId, verificationCode, keyPair.publicKey);
+
+// 4. Create the account
+await handCashConnect.createAccount({
+ accessPublicKey: keyPair.publicKey,
+    email,
+});
+
+// Use the SDK as usual
+const cloudAccount = handCashConnect.getAccountFromAuthToken(keyPair.privateKey);
+const profileFromAuthToken = await cloudAccount.profile.getCurrentProfile();
+```
+
+#### Considerations
+
+After creating the new account, store the `keyPair.privateKey` in a safe place. It will allow you to access the user account later on.
+
+<Note>
+  **Don't worry if you lose the access key**
+
+  You can still redirect the user to HandCash to grant access to your application. It will give you a new access token.  Just follow the *Authentication Flow* described below.
+</Note>
+
+## Authentication Flow
+
+To access a user's account for making payments and retrieving their profiles, you need them to authorize your app. Here's how the authentication flow works:
+
+### 1. Redirect the User to HandCash for Authorization
+
+Generate the redirection URL using the SDK:
+
+```javascript
+const redirectionLoginUrl = handCashConnect.getRedirectionUrl();
+// Example: Redirecting in a web application
+window.location.href = redirectionLoginUrl;
+```
+
+Alternatively, you can compose the URL manually:
+
+```javascript
+const redirectionLoginUrl = `https://app.handcash.io/#/authorizeApp?appId=${handCashConnect.appId}`;
+```
+
+Redirecting the user to `redirectionLoginUrl` will take them to HandCash, where they will be prompted to grant permissions to your app.
+
+### 2. User Grants or Denies Permissions
+
+At HandCash, the user will see a prompt asking them to grant permissions to your app. They can either accept or decline access.
+
+![Connect Auth](/images/connect-auth.png)
+*App authorization preview in the HandCash App*
+
+### 3. Handle the Redirection Back to Your App
+
+After the user makes a selection, they will be redirected back to your app's Authorization Success URL or Authorization Failed URL, which you specified in your [app settings](https://dashboard.handcash.io).
+
+* If the user **accepts**, they will be redirected to:
+
+  ```
+  <your-auth-success-url>?authToken=<AUTH_TOKEN>
+  ```
+
+* If the user **declines**, they will be redirected to:
+
+  ```
+  <your-auth-decline-url>
+  ```
+
+### 4. Retrieve the authToken and Initialize the User Account
+
+Extract the authToken from the query parameters of the redirection URL. Use this token to initialize the user's account:
+
+```javascript
+// Example using Express.js on the server side
+app.get('/handcash/success', (req, res) => {
+  const authToken = req.query.authToken;
+
+  // Store the authToken securely, e.g., in a session or database
+  req.session.authToken = authToken;
+
+  // Initialize the user account
+  const account = handCashConnect.getAccountFromAuthToken(authToken);
+
+  // Proceed with your application logic
+  res.redirect('/dashboard');
+});
+```
+
+**Important:** Keep the authToken secure. Do not expose it in client-side code or logs.
+
+## Custom Redirection Parameters
+
+If you need to pass custom parameters through the authentication process (e.g., to maintain state), you can include them when generating the redirection URL:
+
+```javascript
+const redirectionLoginUrl = handCashConnect.getRedirectionUrl({ state: 'xyz' });
+
+// The redirection URL will include your custom parameters:
+// https://my-app.com/handcash/success?authToken=<AUTH_TOKEN>&state=xyz
+```
+
+## Security Considerations
+
+* **Protect the authToken:** Store the authToken securely on your server. Do not expose it in client-side code or logs.
+
+* **HTTPS:** Ensure that all redirection URLs use HTTPS to protect user data during transmission.
+
+* **Session Management:** Use secure session management practices to associate the authToken with the user's session in your application.
+
+* **Token Expiration:** Be aware that the authToken may expire. Implement error handling to manage token expiration and re-authentication if necessary.
+
+## Summary of the Authentication Flow
+
+1. **Your App Redirects the User:** Redirect the user to HandCash using the authorization URL.
+
+2. **User Authenticates and Grants Permissions:** The user logs in to HandCash (if not already logged in) and grants permissions to your app.
+
+3. **HandCash Redirects Back to Your App:** After authorization, HandCash redirects the user back to your specified success or failure URL, including the authToken if successful.
+
+4. **Your App Uses the authToken:** Use the authToken to initialize the user's account with the HandCash Connect SDK.
+
+5. **Interact with the User's Account:** Utilize the SDK to access user data and perform actions on their behalf.
+
+## App Gallery
+
+Complete the app submission form in [Developer Dashboard](https://dashboard.handcash.io) to be included in the Handcash App Gallery
+
+![App Gallery](/images/app-gallery.png)

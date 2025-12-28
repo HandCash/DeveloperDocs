@@ -1,0 +1,47 @@
+---
+title: Payment Webhooks
+description: 'Receive real-time notifications for completed payment requests'
+---
+
+When you create a payment request with the `notifications.webhook` parameter set, you'll receive a notification each time a payment is completed. HandCash will send an HTTP POST request to the URL you specified.
+
+## Webhook Payload
+
+Your endpoint will receive a POST request with the following JSON payload:
+
+```json
+{
+  "appSecret": "your-app-secret",
+  "paymentRequestId": "9ac9182acae19902",
+  "transactionId": "cc066a86e48f9f5715ba12f37c2cee0f525daf310eada76217b41771d6e67e66",
+  "customParameters": {
+    // The specified customParameters in the PaymentRequest notifications (if any)
+  },
+  "userData": {
+    "id": "64652c00e79d663eb1760a3c",
+    // Other requested user data (if any)
+  }
+}
+```
+
+## Handling Webhooks
+
+1. Your server must return a `200` status code once you have successfully processed the notification.
+2. If HandCash doesn't receive a `200` response, it will retry with exponential backoff for 24 hours.
+
+## Security
+
+To ensure the webhook is genuinely from HandCash:
+
+1. Verify that the `appSecret` in the webhook payload matches your app's secret.
+2. This confirmation ensures the HTTP call is invoked directly from HandCash to your service.
+
+🔐 **Keep it secure**: Anyone could potentially send an HTTP request to your server and fake a payment confirmation. Always verify the `appSecret`.
+
+## Best Practices
+
+1. Implement proper error handling in your webhook endpoint.
+2. Use HTTPS for your webhook URL to ensure secure communication.
+3. Consider implementing a queue system if you expect high volumes of webhooks.
+4. Log all received webhooks for debugging and auditing purposes.
+5. Implement idempotency to handle potential duplicate webhooks.

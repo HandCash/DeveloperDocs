@@ -1,0 +1,70 @@
+---
+title: Permissions
+description: 'Check granted permissions and sample calls for each permission in v3'
+---
+
+## Read granted permissions
+
+```typescript
+import { getInstance, Connect } from '@handcash/sdk';
+
+const sdk = getInstance({ appId: 'YOUR_APP_ID', appSecret: 'YOUR_APP_SECRET' });
+const client = sdk.getAccountClient('<AUTH_TOKEN>');
+
+const { data, error } = await Connect.getPermissions({ client });
+if (error) throw error;
+console.log('App:', data?.appId);
+console.log('Permissions:', data?.items);
+```
+
+## Use cases per permission
+
+- USER_PUBLIC_PROFILE
+
+```typescript
+// Fetch public profiles by alias/handle (no user client required)
+const { data } = await Connect.getPublicUserProfiles({
+  client: sdk.client,
+  query: { aliases: ['nosetwo', 'handcash'] },
+});
+```
+
+- USER_PRIVATE_PROFILE
+
+```typescript
+// Get current user's profile (requires user client)
+const result = await Connect.getCurrentUserProfile({ client });
+console.log(result.data?.privateProfile?.email);
+```
+
+- READ_BALANCE
+
+```typescript
+const balances = await Connect.getBalances({ client });
+const spendable = await Connect.getSpendableBalances({ client });
+```
+
+- PAY
+
+```typescript
+const payment = await Connect.pay({
+  client,
+  body: {
+    instrumentCurrencyCode: 'BSV',
+    denominationCurrencyCode: 'USD',
+    receivers: [{ destination: 'nosetwo', sendAmount: 0.01 }],
+  },
+});
+```
+
+- GENERATE_ADDRESS
+
+```typescript
+const depo = await Connect.getDepositAddress({ client });
+```
+
+<Note>
+Other enum values like ITEMS_READ / ITEMS_WRITE and READ_TRANSACTIONS are for Items and transactions APIs, which will be documented as their v3 endpoints are published.
+</Note>
+
+

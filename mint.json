@@ -47,6 +47,23 @@
       ]
     },
     {
+      "group": "v2 / Handcash Connect",
+      "pages": [
+        "v2/handcash-connect/getting-started",
+        "v2/handcash-connect/account",
+        "v2/handcash-connect/wallet"
+      ]
+    },
+    {
+      "group": "v2 / Handcash Connect (v3 API)",
+      "pages": [
+        "v2/handcash-connect/profile",
+        "v2/handcash-connect/permissions",
+        "v2/handcash-connect/read-balance",
+        "v2/handcash-connect/friends"
+      ]
+    },
+    {
       "group": "v3 / Getting Started",
       "pages": [
         "v3/getting-started"

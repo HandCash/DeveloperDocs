@@ -1,0 +1,198 @@
+---
+title: Wallet
+description: 'The `Wallet` class provides methods to interact with user wallets in the HandCash Connect SDK.'
+---
+
+## Methods
+
+### getSpendableBalance(currencyCode?)
+
+Checks the user's spendable balance. The user authorizes the amount an app can spend daily; by default, this value is $10 per day. Users can adjust this limit in the HandCash Market.
+
+```typescript
+async getSpendableBalance(currencyCode?: CurrencyCode): Promise<SpendableBalance>
+```
+
+**Parameters:**
+- `currencyCode`
+
+**Returns:** A promise that resolves with the spendable balance.
+
+**Example:**
+```javascript
+const balance = await account.wallet.getSpendableBalance('USD');
+console.log(`Spendable balance: ${balance.spendableFiatBalance} ${balance.currencyCode}`);
+```
+
+**Response Type:**
+```typescript
+type SpendableBalance = {
+  spendableSatoshiBalance: number;
+  spendableFiatBalance: number;
+  currencyCode: string;
+};
+```
+
+### getTotalBalance()
+
+Get the user's total satoshi & fiat balance.
+
+```typescript
+async getTotalBalance(): Promise<UserBalance>
+```
+
+**Returns:** A promise that resolves with the user balance.
+
+**Example:**
+```javascript
+const totalBalance = await account.wallet.getTotalBalance();
+console.log(`Total balance: ${totalBalance.fiatBalance} ${totalBalance.fiatCurrencyCode}`);
+```
+
+**Response Type:**
+```typescript
+type UserBalance = {
+  satoshiBalance: number;
+  fiatBalance: number;
+  fiatCurrencyCode: string;
+};
+```
+
+### pay(paymentParameters)
+
+Make a payment for your user.
+
+```typescript
+async pay(paymentParameters: PaymentParameters): Promise<PaymentResult>
+```
+
+**Parameters:**
+- `paymentParameters`: The payment parameters.
+
+**Returns:** A promise that resolves with the payment result.
+
+**Example:**
+```javascript
+const paymentParams = {
+  description: 'Payment for goods',
+  payments: [
+    {
+      destination: 'user123',
+      currencyCode: 'USD',
+      sendAmount: 10,
+    },
+  ],
+};
+const result = await account.wallet.pay(paymentParams);
+console.log(`Payment successful. Transaction ID: ${result.transactionId}`);
+```
+
+**PaymentParameters Type:**
+```typescript
+type PaymentParameters = {
+  description?: string;
+  appAction?: string;
+  payments: Receiver[];
+  attachment?: Attachment;
+};
+
+type Receiver = {
+  destination: string;
+  currencyCode: CurrencyCode;
+  sendAmount: number;
+  tags?: string[];
+};
+
+```
+
+**PaymentResult Type:**
+```typescript
+type PaymentResult = {
+  transactionId: string;
+  note: string;
+  appAction: string;
+  time: number;
+  type: string;
+  satoshiFees: number;
+  satoshiAmount: number;
+  fiatExchangeRate: number;
+  fiatCurrencyCode: CurrencyCode;
+  participants: TransactionParticipant[];
+  attachments: Attachment[];
+  rawTransactionHex: string;
+};
+
+type Attachment = {
+  format: string;
+  value: string;
+};
+
+type TransactionParticipant = {
+  type: string;
+  handle: string;
+  displayName: string;
+  profilePictureUrl: string;
+};
+```
+
+### getPayment(transactionId)
+
+Fetch information about one of your payments using the transaction id as reference.
+
+```typescript
+async getPayment(transactionId: string): Promise<PaymentResult>
+```
+
+**Parameters:**
+- `transactionId`: The transaction id.
+
+**Returns:** A promise that resolves with the payment result.
+
+**Example:**
+```javascript
+const transactionId = 'abc123xyz';
+const paymentInfo = await account.wallet.getPayment(transactionId);
+console.log(`Payment amount: ${paymentInfo.satoshiAmount} satoshis`);
+```
+
+### getExchangeRate(currencyCode)
+
+Fetch the exchange rate for a given currency.
+
+```typescript
+async getExchangeRate(currencyCode: CurrencyCode): Promise<ExchangeRate>
+```
+
+**Parameters:**
+- `currencyCode`: The currency code. See the [list of supported currencies](https://docs.handcash.io/docs/supported-currencies).
+
+**Returns:** A promise that resolves with the exchange rate.
+
+**Example:**
+```javascript
+const exchangeRate = await account.wallet.getExchangeRate('EUR');
+console.log(`Current exchange rate for EUR: ${exchangeRate.rate}`);
+```
+
+**Response Type:**
+```typescript
+type ExchangeRate = {
+  fiatSymbol: string;
+  rate: number;
+  exchangeRateVersion: string;
+  estimatedExpireDate: string;
+};
+```
+
+## Types
+
+### CurrencyCode
+
+The SDK supports the following currency codes:
+
+```typescript
+type CurrencyCode =
+  'BSV' | 'ARS' | 'AUD' | 'BRL' | 'CAD' | 'CHF' | 'CNY' | 'COP' | 'CZK' | 'DKK' |
+  'EUR' | 'GBP' | 'HKD' | 'JPY' | 'KRW' | 'MXN' | 'NOK' | 'NZD' | 'PHP' | 'RUB' |
+  'SAT' | 'SEK' | 'SGD' | 'THB' | 'USD' | 'ZAR';
+```

@@ -3,87 +3,98 @@ title: Authentication
 description: 'Authenticate users and manage permissions with Handcash Connect'
 ---
 
-## Suggested Prerequisites
-- Handcash Developer Dashboard account
-- Node.js application setup
-- HTTPS-enabled server for redirect URLs
-- Secure session/token storage system
+# HandCash Authentication Integration Guide
 
-## Suggested Prompt
+## Critical: Key Generation Code
 
-```text
-Read this documentation then integrate user authentication from the v3 SDK: https://docs.handcash.io/v3/connect/authentication
+Required dependency:
+```json
+"@noble/secp256k1": "2.2.3"
 ```
 
-## User Authentication Flow
-
-### 1. Generate Authorization URL
-
+Exact code (use anywhere - client or server):
 ```typescript
-import { getInstance } from '@handcash/sdk';
+import * as secp256k1 from "@noble/secp256k1"
 
-const sdk = getInstance({
-  appId: 'YOUR_APP_ID',
-  appSecret: 'YOUR_APP_SECRET',
-});
-
-// Generate redirect URL
-const authUrl = sdk.getRedirectionUrl();
-console.log('Redirect user to:', authUrl);
-
-// With custom state parameter
-const authUrlWithState = sdk.getRedirectionUrl({ state: 'custom-state' });
-```
-
-### 2. Handle User Authorization
-
-After the user authorizes your app, they'll be redirected back with an `authToken`:
-
-```typescript
-// In your callback handler
-app.get('/auth/callback', (req, res) => {
-  const authToken = req.query.authToken;
+export function generateAuthenticationKeyPair() {
+  const privateKey = secp256k1.utils.randomSecretKey()
+  const publicKey = secp256k1.getPublicKey(privateKey, true)
   
-  if (authToken) {
-    // Store the token securely
-    // Redirect to your app
-    res.redirect('/');
-  } else {
-    // Handle authorization failure
-    res.redirect('/auth/error');
+  return {
+    privateKey: Buffer.from(privateKey).toString("hex"),
+    publicKey: Buffer.from(publicKey).toString("hex"),
   }
-});
+}
 ```
 
-### 3. Create User Client
+## Authentication Flow
+
+### 1. Generate keys
 
 ```typescript
-import { getInstance, Connect } from '@handcash/sdk';
-
-const sdk = getInstance({ appId, appSecret });
-const client = sdk.getAccountClient(authToken);
-
-// Now you can use the client for user operations
-const profile = await Connect.getCurrentUserProfile({ client });
+const { privateKey, publicKey } = generateAuthenticationKeyPair()
 ```
+
+### 2. Store privateKey somewhere
+
+**Client:**
+- localStorage
+- sessionStorage
+- memory
+
+**Server:**
+- database
+- Redis
+- session
+- JWT
+
+### 3. Redirect to HandCash
+
+```typescript
+const authUrl = `https://handcash.io/connect?appId=YOUR_APP_ID&publicKey=${publicKey}`
+window.location.href = authUrl
+```
+
+### 4. On callback, validate authToken
+
+```typescript
+import { getInstance, Connect } from '@handcash/sdk'
+
+// privateKey IS the authToken
+const authToken = privateKey
+
+// Validate with HandCash
+const sdk = getInstance({ appId, appSecret })
+const client = sdk.getAccountClient(authToken)
+await Connect.getCurrentUserProfile({ client })
+```
+
+### 5. Store authToken for user session
+
+Store the `authToken` (which is the `privateKey`) securely for the user's session.
+
+## That's It
+
+The `privateKey` becomes the `authToken`. Generate it, send `publicKey` to HandCash, validate the `privateKey`/`authToken`, store it for the session.
 
 ## Check User Permissions
 
 ```typescript
-const permissions = await Connect.getPermissions({ client });
-console.log('User granted permissions:', permissions);
+const { data } = await Connect.getPermissions({ client })
+console.log('User granted permissions:', data?.items)
 ```
 
 ## Error Handling
 
 ```typescript
 try {
-  const client = sdk.getAccountClient(authToken);
-  const profile = await Connect.getCurrentUserProfile({ client });
+  const client = sdk.getAccountClient(authToken)
+  const profile = await Connect.getCurrentUserProfile({ client })
 } catch (error) {
   if (error.message.includes('Invalid token')) {
     // Token expired or invalid, redirect to re-authenticate
-    res.redirect(sdk.getRedirectionUrl());
+    const { publicKey } = generateAuthenticationKeyPair()
+    window.location.href = `https://handcash.io/connect?appId=${appId}&publicKey=${publicKey}`
   }
 }
 ```
@@ -93,4 +104,4 @@ try {
 - **Store tokens securely** - Use encrypted storage or secure sessions
 - **Use HTTPS** - Always use HTTPS for redirect URLs
 - **Validate tokens** - Check token validity before making API calls
-- **Handle expiration** - Implement token refresh logic
+- **Protect the privateKey** - The privateKey IS the authToken - treat it as sensitive data

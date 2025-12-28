@@ -1,0 +1,163 @@
+---
+title: Profile
+description: 'The `Profile` class provides methods to interact with user profiles in the HandCash Connect SDK.'
+---
+
+### Initialize the User Account
+
+After the user authorizes your application, initialize their account using the authentication token:
+```javascript
+import { getInstance, Connect } from '@handcash/sdk';
+
+const sdk = getInstance({
+  appId: 'YOUR_APP_ID',
+  appSecret: 'YOUR_APP_SECRET',
+});
+const client = sdk.getAccountClient('<authToken>');
+```
+
+## Methods
+
+### getCurrentProfile()
+
+Retrieves the full profile of the current user, including both public and private information.
+
+```javascript
+async getCurrentProfile(): Promise<UserProfile>
+```
+
+**Returns:** A promise that resolves to the user's full profile.
+
+**Example:**
+
+```javascript
+const result = await Connect.getCurrentUserProfile({ client });
+console.log(`Welcome, ${result.data?.publicProfile?.displayName}!`);
+```
+
+**Types:**
+
+```typescript
+type UserPublicProfile = {
+  id: string;
+  handle: string;
+  paymail: string;
+  displayName: string;
+  avatarUrl: string;
+  createdAt: Date;
+};
+
+type UserPrivateProfile = {
+  email: string;
+};
+```
+
+**Response Type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| publicProfile | UserPublicProfile | Public information about the user |
+| privateProfile | UserPrivateProfile | Private information about the user |
+
+### getPublicProfilesByHandle(handles)
+
+Retrieves the public profiles of HandCash users by their handles.
+
+```javascript
+// v3: use Connect.getPublicUserProfiles({ query: { aliases: [...] } })
+```
+
+- `handles`: An array of user handles.
+
+**Returns:** A promise that resolves to an array of user public profiles.
+
+**Example:**
+
+```javascript
+const handles = ['user1', 'user2'];
+const { data } = await Connect.getPublicUserProfiles({ client: sdk.client, query: { aliases: handles } });
+data?.items.forEach(profile => console.log(profile.displayName));
+```
+
+**Response Type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Unique identifier for the user |
+| handle | string | User's HandCash handle |
+| paymail | string | User's paymail address |
+| displayName | string | User's display name |
+| avatarUrl | string | URL of the user's avatar image |
+| createdAt | Date | Date when the profile was created |
+
+### getFriends()
+
+Retrieves a list of the user's friends and their public profiles. Requires the `FRIENDS` permission.
+
+```javascript
+// v3: friends endpoint is not part of the public v3 SDK
+```
+
+**Returns:** A promise that resolves to an array of public profiles of the user's friends.
+
+**Example:**
+
+```javascript
+// Not available in v3
+```
+
+**Response Type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| (Same as UserPublicProfile) | | |
+
+
+### getPermissionsInfo()
+
+Retrieves the permissions granted to the app by the user, along with the app ID.
+
+```javascript
+// v3: use Connect.getPermissions({ client })
+```
+
+**Returns:** A promise that resolves to an object containing the permissions and app ID.
+
+**Permission Enum:**
+
+```typescript
+enum Permission {
+  Pay = 'PAY',
+  UserPublicProfile = 'USER_PUBLIC_PROFILE',
+  UserPrivateProfile = 'USER_PRIVATE_PROFILE',
+  Friends = 'FRIENDS',
+  Decrypt = 'DECRYPT',
+  ReadBalance = 'READ_BALANCE',
+}
+```
+
+**Example:**
+
+```javascript
+const { data } = await Connect.getPermissions({ client });
+console.log(`App ID: ${data?.appId}`);
+console.log('Permissions:', data?.items);
+```
+
+**Response Type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| items | Permission[] | Array of Permission enum values |
+| appId | string | Unique identifier for the app |
+
+## Types
+
+The SDK uses several TypeScript types for representing user profiles, permissions, and other data. Here are some key types:
+
+- `UserProfile`: Combines public and private profile information.
+- `UserPublicProfile`: Contains publicly accessible user information.
+- `UserPrivateProfile`: Contains private user information.
+- `PermissionInfo`: Contains permissions and app ID.
+
+For more detailed information on these types, refer to the SDK's type definitions.
