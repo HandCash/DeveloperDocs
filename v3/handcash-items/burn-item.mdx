@@ -3,14 +3,15 @@ title: Burn an Item
 description: 'Permanently destroy items with HandCash Items'
 ---
 
-```typescript
-import { HandCashConnect } from '@handcash/handcash-connect';
+<Warning>
+**⚠️ Burn Not Yet Available in v3 SDK**
 
-const connect = new HandCashConnect({ appId, appSecret });
-const account = connect.getAccountFromAuthToken('<AUTH_TOKEN>');
-await account.items.burnItems({
-  items: [{ id: '<ITEM_ID>' }],
-});
-```
+The `Items.burnItems()` method is **not yet available** in the v3 SDK (`@handcash/sdk`).
 
+**For now, use the v2 fallback documentation:**
+- [Burn Items (v2)](/v2/handcash-connect/burn-item)
 
+**Note:** `Items.burnAndCreateItemsOrder()` may be available in v3 SDK - if you leave the `issue` parameter empty, it performs a burn operation. Check the SDK documentation for availability.
+
+This page will be updated when burn endpoints are added to the v3 SDK.
+</Warning>

@@ -1,0 +1,193 @@
+---
+title: Burn and Create Items
+description: 'Burn existing items and create new ones in a single operation'
+---
+
+<Warning>
+**⚠️ Legacy SDK Documentation**
+
+This documentation uses our older SDK (`@handcash/handcash-connect`), but the v3 SDK does not support this feature yet.
+</Warning>
+
+# Burn and Create Items
+
+Burn existing items and create new items in a single atomic operation using the HandCash Connect SDK.
+
+## Prerequisites
+
+- Business wallet credentials (`authToken`)
+- Collection ID for the new items
+- Items to burn (must be owned by the app)
+- Item metadata and media for new items
+
+## Setup
+
+```typescript
+import { HandCashMinter } from '@handcash/handcash-connect';
+
+const handCashMinter = HandCashMinter.fromAppCredentials({
+  appId: process.env.HANDCASH_APP_ID,
+  authToken: process.env.HANDCASH_AUTH_TOKEN, // Business wallet token
+  appSecret: process.env.HANDCASH_APP_SECRET
+});
+```
+
+## Burn and Create Operation
+
+Perform both burn and create operations atomically:
+
+```typescript
+const burnAndCreateOrder = await handCashMinter.burnAndCreateItemsOrder({
+  burn: {
+    origins: [
+      'item-origin-1',
+      'item-origin-2'
+    ]
+  },
+  issue: {
+    referencedCollection: '<COLLECTION_ID>',
+    items: [
+      {
+        name: 'New Item 1',
+        rarity: 'Rare',
+        quantity: 1,
+        mediaDetails: {
+          image: {
+            url: 'https://example.com/item1.png',
+            contentType: 'image/png'
+          }
+        }
+      },
+      {
+        name: 'New Item 2',
+        rarity: 'Common',
+        quantity: 1,
+        mediaDetails: {
+          image: {
+            url: 'https://example.com/item2.png',
+            contentType: 'image/png'
+          }
+        }
+      }
+    ]
+  }
+});
+
+console.log('Burn and create order:', burnAndCreateOrder.id);
+```
+
+## Burn Only (No Create)
+
+To burn items without creating new ones, leave the `issue` parameter empty or omit it:
+
+```typescript
+const burnOrder = await handCashMinter.burnAndCreateItemsOrder({
+  burn: {
+    origins: [
+      'item-origin-1',
+      'item-origin-2'
+    ]
+  }
+  // No issue parameter = burn only
+});
+
+console.log('Burn order:', burnOrder.id);
+```
+
+## Use Cases
+
+### Open Card Pack
+
+```typescript
+async function openCardPack(packOrigin: string) {
+  // Generate random cards
+  const newCards = [
+    {
+      name: 'Card 1',
+      rarity: 'Common',
+      quantity: 1,
+      mediaDetails: {
+        image: {
+          url: 'https://example.com/card1.png',
+          contentType: 'image/png'
+        }
+      }
+    },
+    {
+      name: 'Card 2',
+      rarity: 'Rare',
+      quantity: 1,
+      mediaDetails: {
+        image: {
+          url: 'https://example.com/card2.png',
+          contentType: 'image/png'
+        }
+      }
+    }
+  ];
+
+  // Burn pack and create cards in one operation
+  const order = await handCashMinter.burnAndCreateItemsOrder({
+    burn: {
+      origins: [packOrigin]
+    },
+    issue: {
+      referencedCollection: '<COLLECTION_ID>',
+      items: newCards
+    }
+  });
+
+  return order;
+}
+```
+
+### Crafting System
+
+```typescript
+async function craftItem(materialOrigins: string[], resultItem: any) {
+  const order = await handCashMinter.burnAndCreateItemsOrder({
+    burn: {
+      origins: materialOrigins
+    },
+    issue: {
+      referencedCollection: '<COLLECTION_ID>',
+      items: [resultItem]
+    }
+  });
+
+  return order;
+}
+```
+
+## Important Notes
+
+- The operation is atomic - both burn and create happen together or not at all
+- Use item origins (not IDs) for the burn operation
+- The `referencedCollection` must be an existing collection ID
+- If you omit the `issue` parameter, only the burn operation is performed
+- Order processing is asynchronous (typically takes less than 5 seconds)
+
+## Error Handling
+
+```typescript
+try {
+  const order = await handCashMinter.burnAndCreateItemsOrder({
+    burn: {
+      origins: ['item-origin-1']
+    },
+    issue: {
+      referencedCollection: '<COLLECTION_ID>',
+      items: [/* new items */]
+    }
+  });
+} catch (error) {
+  if (error.message.includes('Invalid collection')) {
+    console.log('Collection ID is invalid');
+  } else if (error.message.includes('Item not found')) {
+    console.log('One or more items to burn do not exist');
+  } else if (error.message.includes('Permission denied')) {
+    console.log('Invalid business wallet credentials');
+  }
+}
+```
+

@@ -47,32 +47,6 @@
       ]
     },
     {
-      "group": "v2 / Fallback - Item Operations",
-      "pages": [
-        "v2/handcash-connect/send-item",
-        "v2/handcash-connect/manage-items"
-      ]
-    },
-    {
-      "group": "v2 / Fallback - Collection & Orders",
-      "pages": [
-        "v2/handcash-connect/collection-management",
-        "v2/handcash-connect/manage-item-orders"
-      ]
-    },
-    {
-      "group": "v2 / Fallback - Friends",
-      "pages": [
-        "v2/handcash-connect/friends"
-      ]
-    },
-    {
-      "group": "v2 / Fallback - Payment Requests",
-      "pages": [
-        "v2/handcash-connect/manage-payment-request"
-      ]
-    },
-    {
       "group": "v3 / Getting Started",
       "pages": [
         "v3/getting-started"
@@ -96,8 +70,7 @@
       "group": "v3 / Items",
       "pages": [
         "v3/items/inventory",
-        "v3/items/creation",
-        "v3/items/transfers"
+        "v3/items/creation"
       ]
     },
     {
@@ -107,7 +80,28 @@
       ]
     },
     {
-      "group": "v3 / Payment Requests",
+      "group": "v2 / Item Operations",
+      "pages": [
+        "v2/handcash-connect/send-item",
+        "v2/handcash-connect/manage-items",
+        "v2/handcash-connect/burn-item",
+        "v2/handcash-connect/burn-and-create"
+      ]
+    },
+    {
+      "group": "v2 / Collection Management",
+      "pages": [
+        "v2/handcash-connect/collection-management"
+      ]
+    },
+    {
+      "group": "v2 / Friends",
+      "pages": [
+        "v2/handcash-connect/friends"
+      ]
+    },
+    {
+      "group": "API / Payment Requests",
       "pages": [
         "handcash-pay/getting-started",
         "handcash-pay/create-payment-request",
