@@ -103,10 +103,7 @@
     {
       "group": "API / Payment Requests",
       "pages": [
-        "handcash-pay/getting-started",
-        "handcash-pay/create-payment-request",
-        "handcash-pay/manage-payment-request",
-        "handcash-pay/webhooks"
+        "handcash-pay/manage-payment-request"
       ]
     },
     {

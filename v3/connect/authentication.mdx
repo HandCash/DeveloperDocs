@@ -82,6 +82,12 @@ window.location.href = authUrl
 
 The user will log in and authorize your app on HandCash.
 
+<Note>
+**Recommended: Use State Parameter for CSRF Protection**
+
+For enhanced security, include a `state` parameter to prevent CSRF attacks. See the [State Parameter Security](#state-parameter-security) section below.
+</Note>
+
 ### Step 4: Handle Callback
 
 After authorization, HandCash redirects to your **Authorization Success URL**. Retrieve the stored private key and validate:
@@ -139,8 +145,99 @@ try {
 }
 ```
 
+## State Parameter Security
+
+<Warning>
+**Recommended:** Use the `state` parameter to prevent CSRF attacks and ensure the callback originated from your app session.
+</Warning>
+
+### What This Means in Practice
+
+#### 1️⃣ App Generates State When Starting Connect
+
+Generate a random, unguessable string and store it in your app session:
+
+```typescript
+import crypto from 'crypto'
+
+// Generate random state
+const state = crypto.randomBytes(32).toString('hex')
+
+// Store in session (server-side example)
+req.session.handcashState = state
+
+// Or client-side (sessionStorage)
+sessionStorage.setItem('handcash_state', state)
+```
+
+Include the state in the redirect URL:
+
+```typescript
+const authUrl = `https://handcash.io/connect?appId=YOUR_APP_ID&publicKey=${publicKey}&state=${state}`
+window.location.href = authUrl
+```
+
+#### 2️⃣ Wallet Requires State
+
+The HandCash wallet will:
+- Require `state` to be present in the authorization request
+- Echo the same `state` back in the callback URL
+- Treat `state` as proof that the key came from the same app session that initiated connect
+
+#### 3️⃣ Wallet Redirects Back with Same State
+
+After authorization, HandCash redirects to your callback URL with the state included:
+
+```
+https://yourapp.com/auth/success?userId=...&publicKey=...&state=STATE
+```
+
+#### 4️⃣ App Validates State
+
+Validate that the state matches the one stored in your session:
+
+```typescript
+// Server-side example
+app.get('/auth/success', async (req, res) => {
+  const callbackState = req.query.state
+  const sessionState = req.session.handcashState
+  
+  // Validate state matches
+  if (callbackState !== sessionState) {
+    return res.status(403).send('Invalid state parameter - possible CSRF attack')
+  }
+  
+  // Clear state from session
+  delete req.session.handcashState
+  
+  // Continue with authentication...
+  const privateKey = req.session.handcashPrivateKey
+  // ... rest of authentication flow
+})
+```
+
+```typescript
+// Client-side example
+const urlParams = new URLSearchParams(window.location.search)
+const callbackState = urlParams.get('state')
+const sessionState = sessionStorage.getItem('handcash_state')
+
+if (callbackState !== sessionState) {
+  console.error('Invalid state parameter - possible CSRF attack')
+  return
+}
+
+// Clear state
+sessionStorage.removeItem('handcash_state')
+
+// Continue with authentication...
+```
+
+**If state mismatch → reject the request** - This indicates a potential CSRF attack.
+
 ## Security Best Practices
 
+- **Use state parameter** - Always include and validate `state` to prevent CSRF attacks
 - **Store private keys securely** - Use encrypted storage or secure sessions
 - **Use HTTPS** - Always use HTTPS for redirect URLs
 - **Validate private keys** - Check validity before making API calls

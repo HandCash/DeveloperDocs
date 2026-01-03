@@ -1,161 +1,274 @@
----
-title: Manage Payment Request
-description: 'Check status, update, and cancel payment requests'
----
+# HandCash Payment Requests API - Corrected Documentation
 
-## Check Payment Request Status
+Based on real-world implementation and testing. This documentation corrects errors found in the official docs.
 
-```typescript
-import { getInstance } from '@handcash/sdk';
+## API Base URL
+```
+https://cloud.handcash.io/v3/paymentRequests
+```
 
-const sdk = getInstance({
-  appId: 'your-app-id',
-  appSecret: 'your-app-secret'
-});
+## Authentication Headers
 
-// Get payment request details
-const paymentRequest = await sdk.getPaymentRequest({
-  paymentRequestId: 'pr_123456789'
-});
+**IMPORTANT**: Headers are case-sensitive. Use lowercase:
 
-console.log('Status:', paymentRequest.status);
-console.log('Amount:', paymentRequest.amount);
-console.log('Paid at:', paymentRequest.paidAt);
+```
+app-id: your-target-app-id
+app-secret: your-target-app-secret
+```
+
+## Create Payment Request
+
+**Method**: `POST`  
+**URL**: `https://cloud.handcash.io/v3/paymentRequests`
+
+### Required Fields
+
+| Field | Type | Description | Notes |
+|-------|------|-------------|-------|
+| `product` | Object | Product information | **Required** |
+| `product.name` | String | Product name | **Required** |
+| `product.description` | String | Product description | Optional but recommended |
+| `product.imageUrl` | String | Product image URL | Optional but recommended for UX |
+| `instrumentCurrencyCode` | String | Blockchain currency | **Must be "BSV" or "MNEE"** (NOT USD) |
+| `currency` | String | Display/denomination currency | Use "USD", "EUR", "GBP", etc. |
+| `receivers` | Array | Payment recipients | **Required** |
+| `receivers[].destination` | String | HandCash handle or wallet ID | **Required** |
+| `receivers[].sendAmount` | Number | Amount to send | **Required** |
+| `expirationType` | String | Expiration type | **Required**: "limit", "never", or "onPaymentCompleted" |
+
+### Common Mistakes in Official Docs
+
+1. **WRONG**: `denominationCurrencyCode` 
+   **CORRECT**: `currency`
+
+2. **WRONG**: `instrumentCurrencyCode: "USD"`
+   **CORRECT**: `instrumentCurrencyCode: "BSV"` or `"MNEE"` only
+
+3. **WRONG**: `receivers[].currencyCode` field
+   **CORRECT**: Do NOT include `currencyCode` in receivers array
+
+### Working Example
+
+```bash
+curl --request POST \
+  --url https://cloud.handcash.io/v3/paymentRequests \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --header 'app-id: your-app-id' \
+  --header 'app-secret: your-app-secret' \
+  --data '{
+    "product": {
+      "name": "Premium Subscription",
+      "description": "Monthly premium access",
+      "imageUrl": "https://example.com/product.jpg"
+    },
+    "instrumentCurrencyCode": "BSV",
+    "currency": "USD",
+    "receivers": [
+      {
+        "destination": "yourhandle",
+        "sendAmount": 0.01
+      }
+    ],
+    "expirationType": "never",
+    "redirectUrl": "https://yourapp.com/success"
+  }'
+```
+
+### Response Format
+
+```json
+{
+  "id": "507f1f77bcf86cd799439011",
+  "paymentRequestUrl": "https://pay.handcash.io/507f1f77bcf86cd799439011",
+  "paymentRequestQrCodeUrl": "https://pay.handcash.io/api/paymentPreview/qr/507f1f77bcf86cd799439011",
+  "isEnabled": true,
+  "product": {
+    "name": "Premium Subscription",
+    "description": "Monthly premium access",
+    "imageUrl": "https://example.com/product.jpg"
+  },
+  "paymentAmount": {
+    "amount": 0.01,
+    "currencyCode": "USD"
+  },
+  "receivers": [
+    {
+      "destination": "yourhandle",
+      "sendAmount": 0.01
+    }
+  ],
+  "createdAt": 1650558683,
+  "expirationType": "never"
+}
 ```
 
 ## List Payment Requests
 
+**Method**: `GET`  
+**URL**: `https://cloud.handcash.io/v3/paymentRequests`
+
+### Query Parameters (Optional)
+
+- `status` - Filter by status (e.g., "pending", "completed")
+
+### Example
+
+```bash
+curl --request GET \
+  --url https://cloud.handcash.io/v3/paymentRequests \
+  --header 'Accept: application/json' \
+  --header 'app-id: your-app-id' \
+  --header 'app-secret: your-app-secret'
+```
+
+### Response
+
+Returns array of payment request objects in `items` array.
+
+## Get Single Payment Request
+
+**Method**: `GET`  
+**URL**: `https://cloud.handcash.io/v3/paymentRequests/{id}`
+
+**IMPORTANT**: In Next.js 16+, you must await params:
+
 ```typescript
-// Get all payment requests
-const paymentRequests = await sdk.getPaymentRequests({
-  limit: 50,
-  offset: 0,
-  status: 'pending' // optional filter
-});
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  // Use id...
+}
+```
 
-console.log(`Found ${paymentRequests.length} payment requests`);
+### Example
 
-paymentRequests.forEach(pr => {
-  console.log(`${pr.id}: ${pr.amount} ${pr.currency} - ${pr.status}`);
-});
+```bash
+curl --request GET \
+  --url https://cloud.handcash.io/v3/paymentRequests/507f1f77bcf86cd799439011 \
+  --header 'Accept: application/json' \
+  --header 'app-id: your-app-id' \
+  --header 'app-secret: your-app-secret'
 ```
 
 ## Update Payment Request
 
-```typescript
-// Update payment request details
-const updatedRequest = await sdk.updatePaymentRequest({
-  paymentRequestId: 'pr_123456789',
-  description: 'Updated payment description',
-  amount: 30.00, // Update amount if not paid
-  redirectUrl: 'https://yoursite.com/new-success-url'
-});
+**Method**: `PUT`  
+**URL**: `https://cloud.handcash.io/v3/paymentRequests/{id}`
 
-console.log('Updated payment request:', updatedRequest);
-```
+### Updatable Fields
 
-## Cancel Payment Request
+- `product.name`
+- `product.description`
+- `product.imageUrl`
+- `redirectUrl`
+- `notifications.webhook.webhookUrl`
+- `notifications.webhook.customParameters`
+- `notifications.email`
+- `expirationInSeconds`
+- `decreaseRemainingUnits` (only for `expirationType: "limit"`)
 
-```typescript
-// Cancel a pending payment request
-const cancelledRequest = await sdk.cancelPaymentRequest({
-  paymentRequestId: 'pr_123456789'
-});
+### Example
 
-console.log('Cancelled payment request:', cancelledRequest);
-```
-
-## Payment Request Statuses
-
-```typescript
-// Check different statuses
-const statuses = {
-  PENDING: 'Waiting for payment',
-  PAID: 'Payment completed successfully',
-  CANCELLED: 'Payment request was cancelled',
-  EXPIRED: 'Payment request expired',
-  FAILED: 'Payment failed'
-};
-
-const paymentRequest = await sdk.getPaymentRequest({
-  paymentRequestId: 'pr_123456789'
-});
-
-switch (paymentRequest.status) {
-  case 'PENDING':
-    console.log('Payment is still pending');
-    break;
-  case 'PAID':
-    console.log('Payment completed!');
-    console.log('Transaction ID:', paymentRequest.transactionId);
-    console.log('Paid at:', paymentRequest.paidAt);
-    break;
-  case 'CANCELLED':
-    console.log('Payment was cancelled');
-    break;
-  case 'EXPIRED':
-    console.log('Payment request expired');
-    break;
-  case 'FAILED':
-    console.log('Payment failed:', paymentRequest.failureReason);
-    break;
-}
-```
-
-## Search Payment Requests
-
-```typescript
-// Search payment requests by various criteria
-const searchResults = await sdk.searchPaymentRequests({
-  query: {
-    amount: { min: 10, max: 100 },
-    currency: 'USD',
-    status: 'paid',
-    createdAt: {
-      from: '2024-01-01T00:00:00Z',
-      to: '2024-01-31T23:59:59Z'
+```bash
+curl --request PUT \
+  --url https://cloud.handcash.io/v3/paymentRequests/507f1f77bcf86cd799439011 \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --header 'app-id: your-app-id' \
+  --header 'app-secret: your-app-secret' \
+  --data '{
+    "product": {
+      "name": "Updated Product Name"
     }
+  }'
+```
+
+## Delete Payment Request
+
+**Method**: `DELETE`  
+**URL**: `https://cloud.handcash.io/v3/paymentRequests/{id}`
+
+**IMPORTANT**: The API returns an empty response body on success. Do NOT attempt to parse as JSON.
+
+### Example
+
+```bash
+curl --request DELETE \
+  --url https://cloud.handcash.io/v3/paymentRequests/507f1f77bcf86cd799439011 \
+  --header 'app-id: your-app-id' \
+  --header 'app-secret: your-app-secret'
+```
+
+### Handling Delete Response
+
+```typescript
+const response = await fetch(`https://cloud.handcash.io/v3/paymentRequests/${id}`, {
+  method: 'DELETE',
+  headers: {
+    'app-id': process.env.TARGET_APP_ID!,
+    'app-secret': process.env.TARGET_APP_SECRET!,
   },
-  limit: 25,
-  offset: 0
 });
 
-console.log(`Found ${searchResults.length} matching payment requests`);
-```
-
-## Payment Request Analytics
-
-```typescript
-// Get payment request statistics
-const stats = await sdk.getPaymentRequestStats({
-  from: '2024-01-01T00:00:00Z',
-  to: '2024-01-31T23:59:59Z'
-});
-
-console.log('Total requests:', stats.total);
-console.log('Paid requests:', stats.paid);
-console.log('Pending requests:', stats.pending);
-console.log('Cancelled requests:', stats.cancelled);
-console.log('Total amount:', stats.totalAmount);
-console.log('Success rate:', (stats.paid / stats.total * 100).toFixed(2) + '%');
-```
-
-## Error Handling
-
-```typescript
-try {
-  const paymentRequest = await sdk.getPaymentRequest({
-    paymentRequestId: 'pr_123456789'
-  });
-} catch (error) {
-  if (error.code === 'PAYMENT_REQUEST_NOT_FOUND') {
-    console.log('Payment request does not exist');
-  } else if (error.code === 'PAYMENT_REQUEST_EXPIRED') {
-    console.log('Payment request has expired');
-  } else if (error.code === 'INSUFFICIENT_PERMISSIONS') {
-    console.log('You do not have permission to access this payment request');
-  } else {
-    console.log('Error retrieving payment request:', error.message);
-  }
+if (!response.ok) {
+  const text = await response.text();
+  throw new Error(text || 'Failed to delete');
 }
+
+// Success - response body is empty
+return { success: true };
 ```
+
+## Common Issues & Solutions
+
+### Issue: "instrumentCurrencyCode must be one of [MNEE, BSV]"
+
+**Solution**: Never use "USD" for `instrumentCurrencyCode`. Only use "BSV" or "MNEE".
+
+### Issue: "denominationCurrencyCode is not allowed"
+
+**Solution**: The field is called `currency`, not `denominationCurrencyCode`.
+
+### Issue: "receivers[0].currencyCode is not allowed"
+
+**Solution**: Do not include `currencyCode` in the receivers array.
+
+### Issue: "Unexpected end of JSON input" on DELETE
+
+**Solution**: The DELETE endpoint returns an empty body. Handle this by reading as text first:
+
+```typescript
+const text = await response.text();
+const data = text ? JSON.parse(text) : { success: true };
+```
+
+### Issue: "id must be a valid MongoDB ObjectId"
+
+**Solution**: In Next.js 16+, dynamic route params must be awaited:
+
+```typescript
+const { id } = await params; // NOT: const { id } = params;
+```
+
+## Field Mapping Guide
+
+| Official Docs | Actually Works | Type |
+|--------------|----------------|------|
+| `denominationCurrencyCode` | `currency` | String |
+| `instrumentCurrencyCode: "USD"` | `instrumentCurrencyCode: "BSV"` or `"MNEE"` | String |
+| `App-Id` (uppercase) | `app-id` (lowercase) | Header |
+| `App-Secret` (uppercase) | `app-secret` (lowercase) | Header |
+| `receivers[].currencyCode` | ❌ Do not include | N/A |
+
+## Complete Working Implementation
+
+See the `payment-requests-package` folder for a complete, tested implementation including:
+
+- `app/api/payment-requests/route.ts` - POST and GET handlers
+- `app/api/payment-requests/[id]/route.ts` - GET, PUT, DELETE handlers
+- `components/payment-request-management.tsx` - Full UI component
+
+All code has been tested and confirmed working with the HandCash API.
