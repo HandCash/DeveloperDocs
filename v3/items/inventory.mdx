@@ -61,6 +61,27 @@ const { data: items } = await Connect.getItemsInventory({
 console.log(`Found ${items.length} items in collection`);
 ```
 
+### Get All Items Ungrouped
+
+By default, the inventory API groups identical items together. To get all individual items ungrouped (useful for displaying each item instance separately), set `group: false`:
+
+```typescript
+const { data: items } = await Connect.getItemsInventory({
+  client,
+  body: {
+    group: false,
+    limit: 100
+  }
+});
+
+console.log(`Found ${items.length} individual items (ungrouped)`);
+```
+
+This is particularly useful when you need to:
+- Display each item instance separately in your UI
+- Track individual item origins or IDs
+- Show the exact count of item instances rather than grouped quantities
+
 ### Advanced Filtering
 
 ```typescript
