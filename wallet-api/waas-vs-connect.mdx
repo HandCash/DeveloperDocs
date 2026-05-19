@@ -1,0 +1,19 @@
+---
+title: Wallet API vs Connect
+description: 'Choose embedded wallets (WaaS) or Connect based on your users'
+---
+
+| | **Wallet API** | **HandCash Connect** |
+|---|----------------|----------------------|
+| **User** | Your user (new or embedded) | Existing HandCash user |
+| **Onboarding** | Email → create account in your app | Redirect → authorize app |
+| **Wallet auth** | Sign with user **access private key** | `authToken` from redirect |
+| **Base paths** | `/v1/waas/*` | `/v3/connect/*`, `/v3/wallet/*`, … |
+| **npm `@handcash/sdk`** | **Not included** | `Connect`, `Items`, `Users`, … |
+
+## Common mistake
+
+`import { WalletService } from '@handcash/sdk'` will fail — that class is not published. Connect wallet helpers are on **`Connect`** (`Connect.pay`, `Connect.getBalances`). Wallet API requires REST + signing or an OpenAPI-generated client.
+
+- Wallet API: [Getting started](/wallet-api/getting-started)
+- Connect: [v3 Connect authentication](/v3/connect/authentication)

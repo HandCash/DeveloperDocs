@@ -3,31 +3,42 @@ title: Getting Started
 description: 'Build native wallet infrastructure into your application with email-based user onboarding'
 ---
 
+The **Wallet API** (WaaS) provisions embedded HandCash wallets for your users via `/v1/waas/*`. It is separate from **[HandCash Connect](/v3/connect/authentication)**, which links users who already have HandCash.
+
+<Warning>
+The public npm package **`@handcash/sdk` does not include Wallet API clients** — there is no `WalletService` export. Use **REST** against `https://cloud.handcash.io` or generate a client from the OpenAPI spec (tag: **Wallet API**).
+</Warning>
+
 ## Setup
 
-To integrate wallet infrastructure:
+1. Create an application in the [Developer Dashboard](/developer-dashboard).
 
-1. Create an application in the [Developer Dashboard](/developer-dashboard)
+2. Save your **App ID** and **App Secret** for server-side calls.
 
-2. Save your `AppSecret` and `AppId` for later use
+3. Contact [sales@handcash.io](mailto:sales@handcash.io) to enable **wallet creation** for your App ID.
 
-3. Contact [sales@handcash.io](mailto:sales@handcash.io) to enable wallet creation with your application ID
+4. Use the API contract:
+   - **OpenAPI:** [cloud.handcash.io/sdk-docs.json](https://cloud.handcash.io/sdk-docs.json) (filter **Wallet API**)
+   - **Explorer:** [cloud.handcash.io/sdk-docs](https://cloud.handcash.io/sdk-docs/)
 
-4. Install the Handcash SDK in your project:
-
-```
-npm install @handcash/sdk
-```
+Do **not** use the Connect quick start (`npm install @handcash/sdk`) for Wallet API integration — that package only covers Connect, Items, Users, Minter, and Payment Requests.
 
 ## Overview
 
-The Wallet API provides whitelabel wallet infrastructure that integrates directly into your application. Users can be onboarded with just email verification, creating a seamless native experience.
+| Capability | Endpoints |
+|------------|-----------|
+| User onboarding | `POST /v1/waas/account/requestEmailCode`, `POST /v1/waas/account`, `POST /v1/waas/account/accessKey` |
+| Balances | `GET /v1/waas/wallet/balances` |
+| Payments | `POST /v1/waas/wallet/pay` |
+| Transaction history | `GET /v1/waas/wallet/transactions`, `GET /v1/waas/wallet/transaction` |
+| Deposit info | `GET /v1/waas/wallet/depositInfo` |
 
-Core capabilities:
+Account setup uses **`app-id`** and **`app-secret`**. Wallet calls use **[request signing](/wallet-api/request-signing)** with the user’s access private key.
 
-* **User onboarding** - Email-based account creation
-* **Balance management** - Check and track user balances
-* **Payment processing** - Send and receive payments
-* **Transaction history** - Complete payment records
+## Next steps
 
-All wallet functionality operates within your application's interface, maintaining user context and experience.
+- [Create a new wallet](/wallet-api/create-user-account)
+- [Access an existing wallet](/wallet-api/create-authorization-for-existing-account)
+- [Request signing](/wallet-api/request-signing)
+- [Wallet operations](/wallet-api/manage-wallets)
+- [Wallet API vs Connect](/wallet-api/waas-vs-connect)
