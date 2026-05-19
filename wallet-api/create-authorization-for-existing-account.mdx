@@ -2,33 +2,52 @@
 title: Get access to an existing Wallet
 ---
 
-This process is very similar to [creating a new user account](/wallet-api/create-user-account), but simplified for existing users.
+For users who already have an embedded wallet under your app, request email verification and **activate** their access key instead of creating a new account.
 
-```javascript
-import { WalletService, Crypto } from '@handcash/sdk';
+Same headers as [Create a new wallet](/wallet-api/create-user-account): `app-id`, `app-secret`.
 
-const walletService = new WalletService({
-    appId: '<YOUR-APP-ID>',
-    appSecret: '<YOUR-APP-SECRET>',
-});
+## Step 1: Request email code
 
-// Request email verification code
-const email = 'user@example.com';
-const requestId = await walletService.requestSignInEmailCode(email);
-
-// Verify email code
-const verificationCode = '01234567'; // Code entered by user
-const keyPair = Crypto.generateAuthenticationKeyPair();
-await walletService.verifyEmailCode(requestId, verificationCode, keyPair.publicKey);
-
-// Activate access for existing user
-await walletService.activateAccessKey(keyPair.publicKey, email);
-
-// Store the authentication key securely
-await storeAuthenticationKey(keyPair.privateKey);
-
-// Get access to the wallet
-const account = walletService.getWalletAccountFromAuthToken(keyPair.privateKey);
+```http
+POST /v1/waas/account/requestEmailCode
 ```
 
-The main difference from creating a new user is that we use `activateAccessKey()` instead of `createWalletAccount()`, since the wallet already exists.
+```json
+{ "email": "user@example.com" }
+```
+
+## Step 2: Generate a new access key pair
+
+Generate a fresh key pair on your server (see [Create a new wallet](/wallet-api/create-user-account#step-2-generate-an-access-key-pair)).
+
+## Step 3: Activate the access key
+
+```http
+POST /v1/waas/account/accessKey
+```
+
+```json
+{
+  "email": "user@example.com",
+  "accessPublicKey": "<hex-public-key>"
+}
+```
+
+```javascript
+await fetch('https://cloud.handcash.io/v1/waas/account/accessKey', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'app-id': process.env.HANDCASH_APP_ID,
+    'app-secret': process.env.HANDCASH_APP_SECRET,
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    accessPublicKey: publicKeyHex,
+  }),
+});
+```
+
+Store the **private** key securely, then use [request signing](/wallet-api/request-signing) for wallet endpoints.
+
+The difference from new account creation: use **`/v1/waas/account/accessKey`** instead of **`POST /v1/waas/account`**.

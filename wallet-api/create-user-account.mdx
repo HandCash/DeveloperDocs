@@ -2,53 +2,84 @@
 title: "Create a new Wallet"
 ---
 
-First, set up the WalletService:
+Create embedded wallets with the Wallet API REST endpoints. Generate a secp256k1 **access key pair** on your server before starting.
 
-```javascript
-import { WalletService, Crypto } from '@handcash/sdk';
+**Base URL:** `https://cloud.handcash.io`  
+**Headers (account steps):** `app-id`, `app-secret`, `Content-Type: application/json`
 
-const walletService = new WalletService({
-    appId: '<YOUR-APP-ID>',
-    appSecret: '<YOUR-APP-SECRET>',
-});
+<Info>
+Wallet creation must be enabled for your App ID. Contact [sales@handcash.io](mailto:sales@handcash.io) if account creation fails with a feature or limit error.
+</Info>
+
+## Step 1: Request email verification
+
+```http
+POST /v1/waas/account/requestEmailCode
 ```
 
-## Step 1: Email Verification
-
-Request and verify an email code:
-
-```javascript
-// Request email verification code
-const email = 'user@example.com';
-const requestId = await walletService.requestSignUpEmailCode(email);
-// Verify email code
-const verificationCode = '01234567'; // Code entered by user
-const keyPair = Crypto.generateAuthenticationKeyPair();
-await walletService.verifyEmailCode(requestId, verificationCode, keyPair.publicKey);
+```json
+{ "email": "user@example.com" }
 ```
 
-## Step 2: Create and Access Wallet
+The user receives a verification code by email. Complete that flow before creating the account (HandCash validates the email when you call create account).
 
-Create the wallet, store the authentication key, and access the new wallet:
+## Step 2: Generate an access key pair
 
 ```javascript
-// Check if the desired handle is available
-const handle = 'userInputAlias';
-const isAvailableHandle = await walletService.isAliasAvailable(handle);
-if (!isAvailableHandle) {
-    throw new Error('Handle is not available');
+import { secp256k1 } from '@noble/curves/secp256k1';
+
+const privateKey = secp256k1.utils.randomPrivateKey();
+const privateKeyHex = Buffer.from(privateKey).toString('hex');
+const publicKeyHex = Buffer.from(secp256k1.getPublicKey(privateKey, false)).toString('hex');
+// Store privateKeyHex securely for this user — it signs all wallet API calls.
+```
+
+You can use `@noble/curves` only for key generation; Wallet API wallet calls do not require `@handcash/sdk`.
+
+## Step 3: Check alias availability (optional)
+
+```http
+GET /v1/waas/account/aliasAvailability/{alias}
+```
+
+## Step 4: Create the wallet account
+
+```http
+POST /v1/waas/account
+```
+
+```json
+{
+  "email": "user@example.com",
+  "alias": "myuser",
+  "accessPublicKey": "<hex-public-key>"
 }
-// Create new wallet
-await walletService.createWalletAccount(keyPair.publicKey, email, handle);
-// Store the authentication key in a secure place so the user can access the wallet later
-await storeAuthenticationKey(keyPair.privateKey);
-// Get access to the new wallet
-const account = walletService.getWalletAccountFromAuthToken(keyPair.privateKey);
 ```
 
-## Sequence Diagram
+Response includes deposit info (paymail, address, etc.). See OpenAPI schema `wallet-depositInfoSchema`.
 
-The following sequence diagram illustrates the wallet creation process:
+```javascript
+const res = await fetch('https://cloud.handcash.io/v1/waas/account', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'app-id': process.env.HANDCASH_APP_ID,
+    'app-secret': process.env.HANDCASH_APP_SECRET,
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    alias: 'myuser',
+    accessPublicKey: publicKeyHex,
+  }),
+});
+const depositInfo = await res.json();
+```
+
+## Step 5: Wallet operations
+
+Use the access **private** key to [sign requests](/wallet-api/request-signing) for `/v1/waas/wallet/*` — balances, pay, transactions, etc. See [Wallet operations](/wallet-api/manage-wallets).
+
+## Sequence diagram
 
 ```mermaid
 sequenceDiagram
@@ -56,21 +87,12 @@ sequenceDiagram
     participant App
     participant Handcash
     User->>App: Sign up request
-    App-->>User: Confirmation
-    User->>App: Request wallet creation
-    App->>Handcash: Request email verification
-    Handcash->>User: Sends verification email
-    Handcash-->>App: Responds with request_id
+    App->>Handcash: POST /v1/waas/account/requestEmailCode
+    Handcash->>User: Verification email
     User->>App: Enters verification code
-    App->>Handcash: Verify code with request_id
-    Handcash-->>App: Email verified
-    App->>User: Alias selection
-    User->>App: Submit alias
-    App->>Handcash: Check alias availability
-    Handcash-->>App: Alias available
-    App->>Handcash: Create wallet
-    Handcash-->>App: Wallet created
-    App-->>User: Wallet created, show deposit options
+    App->>App: Generate access key pair
+    App->>Handcash: GET aliasAvailability (optional)
+    App->>Handcash: POST /v1/waas/account
+    Handcash-->>App: depositInfo
+    App-->>User: Wallet ready
 ```
-
-This diagram provides a visual representation of the interaction between the User, your App, and Handcash during the wallet creation process.

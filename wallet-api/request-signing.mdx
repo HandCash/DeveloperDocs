@@ -1,0 +1,73 @@
+---
+title: Request signing
+description: 'Sign Wallet API wallet calls with the user access key'
+---
+
+Signed `/v1/waas/wallet/*` requests require:
+
+| Header | Description |
+|--------|-------------|
+| `oauth-publickey` | Hex secp256k1 public key from the user’s access private key |
+| `oauth-signature` | DER signature |
+| `oauth-timestamp` | ISO 8601 timestamp |
+| `oauth-nonce` | Random string |
+
+Also send **`app-id`** and **`app-secret`** (see OpenAPI **Wallet API** security).
+
+The algorithm matches Connect’s `getAccountClient(authToken)` in `@handcash/sdk`, but the private key is the **access key** from wallet onboarding, not a Connect redirect token.
+
+## Payload
+
+```
+{method}
+{pathname}
+{timestamp}
+{rawBody}
+{nonce}
+```
+
+SHA-256 hash the payload string (hex digest), then sign with the user’s access private key (secp256k1, DER).
+
+`pathname` is the path only (e.g. `/v1/waas/wallet/pay`).
+
+## Node.js example
+
+```javascript
+import { createHash, randomBytes } from 'node:crypto';
+import { secp256k1 } from '@noble/curves/secp256k1';
+
+function signWaasRequest({ method, pathname, body = '', accessPrivateKeyHex }) {
+  const timestamp = new Date().toISOString();
+  const nonce = randomBytes(16).toString('hex');
+  const publicKey = Buffer.from(secp256k1.getPublicKey(accessPrivateKeyHex, false)).toString('hex');
+  const signaturePayload = `${method}\n${pathname}\n${timestamp}\n${body}\n${nonce}`;
+  const payloadHash = createHash('sha256').update(signaturePayload).digest('hex');
+  const signature = secp256k1.sign(payloadHash, accessPrivateKeyHex).toDERHex();
+  return {
+    'oauth-publickey': publicKey,
+    'oauth-signature': signature,
+    'oauth-timestamp': timestamp,
+    'oauth-nonce': nonce,
+  };
+}
+
+const pathname = '/v1/waas/wallet/balances';
+const res = await fetch(`https://cloud.handcash.io${pathname}`, {
+  method: 'GET',
+  headers: {
+    'app-id': process.env.HANDCASH_APP_ID,
+    'app-secret': process.env.HANDCASH_APP_SECRET,
+    ...signWaasRequest({
+      method: 'GET',
+      pathname,
+      accessPrivateKeyHex: process.env.USER_ACCESS_PRIVATE_KEY,
+    }),
+  },
+});
+```
+
+For `POST`, pass the **exact** JSON body string used in the request.
+
+## OpenAPI client
+
+Generate a client from [cloud.handcash.io/sdk-docs.json](https://cloud.handcash.io/sdk-docs.json) for the **Wallet API** tag and add these headers in an interceptor.

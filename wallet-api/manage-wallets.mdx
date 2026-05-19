@@ -1,174 +1,73 @@
 ---
 title: Wallet operations
-description: 'Get Balance, Transaction History and Pay from created wallets'
+description: 'Get balance, transaction history, and pay from embedded wallets'
 ---
 
-This guide covers how to manage wallets, including getting deposit methods, checking balances, making payments, and viewing transaction history.
+Wallet endpoints live under `/v1/waas/wallet/*`. Every call must be **[signed](/wallet-api/request-signing)** with the user’s access private key, plus `app-id` and `app-secret`.
 
-## Get Deposit Methods
+<Warning>
+These routes are **not** available on `@handcash/sdk` as `WalletService` or `Connect.*`. Use REST or an OpenAPI-generated **Wallet API** client.
+</Warning>
 
-To retrieve account information and deposit methods:
+## Get deposit info
+
+```http
+GET /v1/waas/wallet/depositInfo
+```
+
+Signed `GET` with empty body. Response includes paymail, alias, and deposit address fields (see OpenAPI `wallet-depositInfoSchema`).
+
+## Get wallet balance
+
+```http
+GET /v1/waas/wallet/balances
+```
+
+Signed `GET`. Returns spendable balances (BSV, MNEE, fiat equivalents per OpenAPI).
+
+## Make a payment
+
+```http
+POST /v1/waas/wallet/pay
+```
+
+Signed `POST`. Request body matches Connect-style payments (`instrumentCurrencyCode`, `receivers`, `description`, etc.) — see **Wallet API** → `POST /v1/waas/wallet/pay` in [cloud.handcash.io/sdk-docs](https://cloud.handcash.io/sdk-docs/).
 
 ```javascript
-const account = walletService.getWalletAccountFromAuthToken(keyPair.privateKey);
-const accountInfo = await account.getDepositInfo();
-console.log(accountInfo);
+const body = JSON.stringify({
+  instrumentCurrencyCode: 'BSV',
+  denominationCurrencyCode: 'USD',
+  description: 'Order #1234',
+  receivers: [{ destination: 'merchant_handle', sendAmount: 1.0 }],
+});
+const pathname = '/v1/waas/wallet/pay';
+
+await fetch(`https://cloud.handcash.io${pathname}`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'app-id': process.env.HANDCASH_APP_ID,
+    'app-secret': process.env.HANDCASH_APP_SECRET,
+    ...signWaasRequest({
+      method: 'POST',
+      pathname,
+      body,
+      accessPrivateKeyHex: process.env.USER_ACCESS_PRIVATE_KEY,
+    }),
+  },
+  body,
+});
 ```
 
-This will return an object with the following structure:
+## Transaction history
 
-```javascript
-{
-  "id": "63b4cdab6d9bbb40a077c31d",
-  "paymail": "jack@lamint.io",
-  "alias": "jack",
-  "base58Address": "16HcSyxRkCDS9omL6kLxrPkM7q9KZm9apA",
-}
+```http
+GET /v1/waas/wallet/transactions
+GET /v1/waas/wallet/transaction
 ```
 
-You can use the following deposit methods:
-- `id` or `alias` to send from other wallets using our SDK.
-- `paymail` to send P2P from other BSV wallets that support this protocol.
-- `base58Address` to send from any BSV wallet or exchange.
+Signed `GET` calls. Query parameters and filters are defined in the OpenAPI spec.
 
-## Get Wallet Balance
+## Self-custody variant
 
-To check the wallet balance:
-
-```javascript
-const account = walletService.getWalletAccountFromAuthToken(keyPair.privateKey);
-const balance = await account.wallet.getTotalBalance();
-console.log(balance);
-```
-
-The response will look like this:
-
-```javascript
-{
-  "items": [
-    {
-      "currency": {
-        "code": "BSV",
-        "logoUrl": "https://res.cloudinary.com/hn8pdtayf/image/upload/v1721318886/54b1047685c48c267bc7b8183af42954.jpg",
-        "symbol": ""
-      },
-      "units": 0.20801351,
-      "fiatEquivalent": {
-        "currencyCode": "USD",
-        "units": 9.18837276372
-      }
-    }
-  ]
-}
-```
-
-## Make a Payment
-
-
-```javascript
-const account = walletService.getWalletAccountFromAuthToken(keyPair.privateKey);
-const accountInfo = await account.getDepositInfo();
-const paymentParameters = {
-  note: 'Sending to myself',
-  currencyCode: 'BSV',
-  denominatedIn: 'USD',
-  receivers: [
-    { destination: depositInfo.paymail, amount: 0.01 },
-    // You can add multiple receivers
-  ]
-};
-const paymentResult = await account.wallet.pay(paymentParameters);
-console.log(paymentResult);
-```
-
-The payment result will look like this:
-
-```javascript
-{
-    "transactionId": "c6df6b9ea763ace4dccc94d244717c07295c3c52bd54ea9d1a66e21eede852b5",
-    "note": "",
-    "type": "send",
-    "time": 1726070984,
-    "units": 0.00019879,
-    "satoshiFees": 0,
-    "fiatEquivalent": {
-        "currencyCode": "USD",
-        "units": 0.009999812886000001
-    },
-    "currency": {
-        "code": "BSV",
-        "logoUrl": "",
-        "symbol": "BSV"
-    },
-    "participants": [
-        {
-            "type": "user",
-            "id": "612cba70e108780b4f6817ad",
-            "alias": "rafa",
-            "displayName": "Rafa Jimenez",
-            "profilePictureUrl": "https://res.cloudinary.com/handcash-iae/image/upload/v1712916589/ccfdc5631f145c1ceb4a305754812d3f.jpg",
-            "avatarMetadata": {},
-            "responseNote": "",
-            "tags": []
-        }
-    ],
-    "attachments": [],
-}
-```
-
-## Get Wallet Payments
-
-To retrieve the wallet's payment history:
-
-```javascript
-const account = walletService.getWalletAccountFromAuthToken(keyPair.privateKey);
-const payments = await account.wallet.getPaymentHistory({ from: 0, to: 5 });
-console.log(payments);
-```
-
-The response will include an array of payment objects:
-
-```javascript
-{
-  "from": 0,
-  "to": 5,
-  "items": [
-    {
-      "transactionId": "917674cbea0f14bbe24c1a9a6f967763a499c4a3a9f20e9bbc1bad8a152a5357",
-      "note": "External deposit",
-      "type": "receive",
-      "time": 1716311894,
-      "currencyCode": "BSV",
-      "currencyUnits": 0.0154,
-      "fiatEquivalent": {
-        "currencyCode": "USD",
-        "units": 1.0826816
-      },
-      "participants": [
-        {
-          "type": "user",
-          "id": "641f16f0365bc7609e582352",
-          "alias": "rjseibane",
-          "profilePictureUrl": "https://cloud.handcash.io/v2/users/profilePicture/rjseibane",
-          "tags": []
-        }
-      ]
-    }
-    // More payments here
-  ]
-}
-```
-
-Available payment filters 
-
-```typescript 
-export type PaymentFilters = {
-	from: number;
-	to: number;
-	type: 'send' | 'receive';
-	fromDate: string;
-	toDate: string;
-	participant: string;
-	tag: string;
-};
-```
+If you registered a wallet with `POST /v1/waas/account/selfCustodial`, use `/v1/waas/wallet/selfCustody/*` with the **`wallet-xpub`** header instead of OAuth signing. See the OpenAPI **Wallet API** tag for those paths.
