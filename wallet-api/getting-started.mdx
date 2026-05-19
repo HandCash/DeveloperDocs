@@ -5,10 +5,6 @@ description: 'Build native wallet infrastructure into your application with emai
 
 The **Wallet API** (WaaS) provisions embedded HandCash wallets for your users via `/v1/waas/*`. It is separate from **[HandCash Connect](/v3/connect/authentication)**, which links users who already have HandCash.
 
-<Warning>
-The public npm package **`@handcash/sdk` does not include Wallet API clients** — there is no `WalletService` export. Use **REST** against `https://cloud.handcash.io` or generate a client from the OpenAPI spec (tag: **Wallet API**).
-</Warning>
-
 ## Setup
 
 1. Create an application in the [Developer Dashboard](/developer-dashboard).
@@ -20,8 +16,7 @@ The public npm package **`@handcash/sdk` does not include Wallet API clients** �
 4. Use the API contract:
    - **OpenAPI:** [cloud.handcash.io/sdk-docs.json](https://cloud.handcash.io/sdk-docs.json) (filter **Wallet API**)
    - **Explorer:** [cloud.handcash.io/sdk-docs](https://cloud.handcash.io/sdk-docs/)
-
-Do **not** use the Connect quick start (`npm install @handcash/sdk`) for Wallet API integration — that package only covers Connect, Items, Users, Minter, and Payment Requests.
+   - **Base URL:** `https://cloud.handcash.io`
 
 ## Overview
 

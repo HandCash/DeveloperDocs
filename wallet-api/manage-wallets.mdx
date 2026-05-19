@@ -5,10 +5,6 @@ description: 'Get balance, transaction history, and pay from embedded wallets'
 
 Wallet endpoints live under `/v1/waas/wallet/*`. Every call must be **[signed](/wallet-api/request-signing)** with the user’s access private key, plus `app-id` and `app-secret`.
 
-<Warning>
-These routes are **not** available on `@handcash/sdk` as `WalletService` or `Connect.*`. Use REST or an OpenAPI-generated **Wallet API** client.
-</Warning>
-
 ## Get deposit info
 
 ```http
