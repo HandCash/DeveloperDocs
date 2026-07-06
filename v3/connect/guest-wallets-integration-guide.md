@@ -271,14 +271,15 @@ You **can** include `alias` to set a specific handle at creation time:
 }
 ```
 
-This creates an **app-created named account**, not a guest wallet. The account is not marked as `guest`, does not get a `guest0XXXXX` handle, and has a lower Connect spend cap. Use this only if you need a user-chosen handle upfront; otherwise omit `alias` and let users [claim a permanent handle](#upgrade--claim-a-permanent-handle) later.
+This sets a **custom handle** at creation time while keeping the same app-created guest behavior as auto-assigned handles. The account is marked `guest: true`, uses your chosen alias instead of `guest0XXXXX`, and shares the same Connect spend cap and re-auth flow. Omit `alias` only when you want HandCash to auto-assign a `guest0XXXXX` handle.
 
-| | Omit `alias` (guest) | Include `alias` (named) |
-|--|----------------------|-------------------------|
+| | Omit `alias` | Include `alias` |
+|--|--------------|-----------------|
 | Handle | Auto-assigned `guest0XXXXX` | Your chosen alias |
-| `guest` flag | `true` | `false` |
-| Connect spend cap | ~$50 USD | ~$25 USD |
-| HandCash app login | Not until handle is claimed | Available with chosen handle |
+| `guest` flag | `true` | `true` |
+| Connect spend cap | ~$50 USD | ~$50 USD |
+| Re-request email code | Yes | Yes |
+| HandCash app login | After [handle claim](#upgrade--claim-a-permanent-handle) | After [handle claim](#upgrade--claim-a-permanent-handle) |
 
 **Success response (200):**
 
@@ -303,13 +304,13 @@ If the same email already has a **guest** account, cloud re-authorizes your app 
 
 ### Guest account limits
 
-Applies when `alias` is **omitted** (auto guest handle):
+Applies to all Connect app-created accounts (with or without a custom `alias`):
 
 | Limit | Value |
 |-------|-------|
 | Connect spend cap | ~$50 USD equivalent (enforced on `Connect.pay`) |
-| Handle | Auto-assigned (`guest0XXXXX`) — not user-chosen |
-| HandCash app login | Not available until handle is claimed |
+| Handle | Auto-assigned `guest0XXXXX` when `alias` is omitted; your chosen alias when provided |
+| HandCash app login | Not available until handle is [claimed](#upgrade--claim-a-permanent-handle) |
 
 ---
 
@@ -649,7 +650,7 @@ Use sandbox / staging credentials from HandCash where available.
 No. Account creation uses Connect REST endpoints. The SDK is for operations after you have `authToken`.
 
 **Can I set a custom handle at creation?**  
-Yes — pass optional `alias` in Step 4. That creates an **app-created named account** (`guest: false`), not a guest wallet. Omit `alias` for auto `guest0XXXXX` handles and the higher spend cap.
+Yes — pass optional `alias` in Step 4 to set the handle upfront. The account is still created as an app-created guest (`guest: true`) with the same spend cap and re-auth behavior as auto-assigned `guest0XXXXX` handles. Omit `alias` only when you want HandCash to assign the handle for you.
 
 **How do I submit the OTP?**  
 `POST /v3/connect/account/` does not accept the verification code. Submit it separately to Trustholder: `POST https://trust.hastearcade.com/auth/verifyCode` with `{ requestId, verificationCode, publicKey }`. See [Step 3](#step-3--submit-email-otp). Call this before create account.
