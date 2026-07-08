@@ -381,22 +381,30 @@ All methods return `{ data, error }` — always check `error` before using `data
 
 ## Detecting guest vs full accounts
 
-### Option A — Handle prefix (recommended today)
+Guest and full accounts share the same Connect profile shape. **Do not** rely on the `guest0` handle prefix — custom-alias guests use a normal-looking handle but are still app-created until claim.
 
-After creation or on profile refresh:
+### Recommended — track claim state in your app
+
+Store whether the user has completed HandCash claim (e.g. after they return from the claim URL). Until then, treat them as a guest for upgrade CTAs and spend-limit messaging.
+
+### Handle prefix (auto-assigned guests only)
+
+Auto-assigned guests use `guest0XXXXX`. This check only covers that subset:
 
 ```typescript
-const isGuest = profile?.handle?.startsWith('guest0') ?? false;
+const isAutoAssignedGuest = profile?.handle?.startsWith('guest0') ?? false;
 ```
 
-### Option B — After user visits HandCash
+Custom-alias guests will return `false` here even though they are still app-created.
 
-HandCash auth state exposes `isAppCreatedAccount: true` when a guest wallet exists for the logged-in email. This is available on HandCash web flows, not via Connect SDK today.
+### HandCash auth / account preview
+
+HandCash auth state and account preview expose `isAppCreatedAccount: true` when the wallet was created via Connect and **has not yet been claimed** (`guestCreatedAt` set, `guestConvertedAt` not set). This covers both auto-assigned and custom-alias guests.
 
 **UI guidance:**
 
-- Show guest handle clearly: *"You're playing as guest000042"*
-- Prompt upgrade before spend limit or when user needs a memorable handle/paymail
+- Show the user's handle clearly (whether `guest000042` or a custom alias)
+- Prompt upgrade before spend limit or when the user needs full HandCash app access
 
 ---
 
@@ -407,7 +415,7 @@ When a guest user wants a real HandCash identity, redirect them to **HandCash we
 ### What happens on claim
 
 - **Same wallet** — balance, items, and history are preserved
-- Handle changes from `guest000042` → user-chosen alias (e.g. `satoshi`)
+- Handle is confirmed or changed at claim (auto-assigned `guest0XXXXX` → user-chosen alias; custom alias can be kept)
 - User can log into HandCash mobile/web
 - Your Connect authorization **remains valid** with the original `authToken` (unless the user revokes your app)
 
@@ -416,7 +424,7 @@ When a guest user wants a real HandCash identity, redirect them to **HandCash we
 1. Show CTA: *"Claim your HandCash username"*
 2. Redirect to HandCash claim URL (same email as guest creation)
 3. Pass a `returnTo` URL so the user returns to your app after claim
-4. On return, refresh profile via `Connect.getCurrentUserProfile` — handle should no longer start with `guest0`
+4. On return, refresh profile via `Connect.getCurrentUserProfile` — after claim, the user is a full HandCash account (same handle or updated)
 
 **Claim URL (HandCash web):**
 
@@ -600,7 +608,8 @@ export async function getGuestProfile(authToken: string) {
   return data;
 }
 
-export function isGuestHandle(handle: string | undefined): boolean {
+/** True only for auto-assigned guest0XXXX handles — not custom-alias guests */
+export function isAutoAssignedGuestHandle(handle: string | undefined): boolean {
   return !!handle?.startsWith('guest0');
 }
 
@@ -696,8 +705,9 @@ CREATE GUEST
 USE WALLET
   sdk.getAccountClient(authToken) → Connect.pay / getSpendableBalances / …
 
-DETECT GUEST
-  profile.handle.startsWith('guest0')
+DETECT GUEST (in your app)
+  Track claim completion locally, or use isAutoAssignedGuestHandle(handle) for guest0 only
+  HandCash account preview: isAppCreatedAccount (both auto + custom alias, until claim)
 
 UPGRADE
   Redirect → https://handcash.io/my-account/account/change-username?returnTo=...
