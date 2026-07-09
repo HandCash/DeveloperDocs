@@ -1,0 +1,336 @@
+---
+title: HandCash Market
+description: 'Browse P2P listings, build a shop UI, and complete purchases from your app'
+---
+
+HandCash Market is a **public REST API** for browsing peer-to-peer item listings. No user authentication is required to read listings — the same data powers [market.handcash.io](https://market.handcash.io).
+
+**Base URL:** `https://cloud.handcash.io`
+
+<Note>
+`@handcash/sdk` does not yet include market browse methods. Call the REST API directly from your backend or client until SDK support ships.
+</Note>
+
+## What you can build
+
+<CardGroup cols={2}>
+  <Card title="Browse catalog" icon="store" href="#browse-catalog">
+    Show item types with floor prices — ideal for shop grids and discovery pages.
+  </Card>
+  <Card title="List individual listings" icon="list" href="#list-individual-listings">
+    Show every active listing for an item type — ideal for detail pages and price comparison.
+  </Card>
+  <Card title="Filter & search" icon="filter" href="#attribute-filters">
+    Narrow results by app, collection, attributes, or search string.
+  </Card>
+  <Card title="Complete a purchase" icon="cart-shopping" href="#buying-a-listing">
+    Redirect to hosted checkout or pay in-app with Connect.
+  </Card>
+</CardGroup>
+
+## Quick start
+
+<Steps>
+  <Step title="Pick your browse mode">
+    Use **catalog** (`POST /v3/market/items/catalog`) for grouped shop views with floor prices.
+    Use **listings** (`POST /v3/itemListing/list` with `group: false`) when you need every active listing for one item type.
+  </Step>
+  <Step title="Filter to your app">
+    Pass `appIds: ["YOUR_APP_ID"]` on catalog requests or `appId` on listing requests so buyers only see your inventory.
+  </Step>
+  <Step title="Render listing cards">
+    Each row includes `name`, `imageUrl`, `attributes`, `collection`, and `itemListing` with price + `paymentRequestUrl`.
+  </Step>
+  <Step title="Complete checkout">
+    Redirect to `itemListing.paymentRequestUrl` for hosted pay, or call `POST /v3/wallet/transactions/send/paymentRequest` with the buyer's Connect token for in-app checkout.
+  </Step>
+</Steps>
+
+---
+
+## Browse catalog
+
+Returns **one row per item type** with the cheapest active listing attached (floor price). Best for shop homepages, category grids, and search results.
+
+```
+POST /v3/market/items/catalog
+```
+
+```bash
+curl -X POST https://cloud.handcash.io/v3/market/items/catalog \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": 0,
+    "to": 50,
+    "sort": "popularity",
+    "order": "desc",
+    "appIds": ["YOUR_APP_ID"]
+  }'
+```
+
+### Catalog parameters
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `from` | number | `0` | Pagination start (inclusive) |
+| `to` | number | `20` | Pagination end (max 500 per request) |
+| `sort` | string | `"name"` | `price`, `name`, or `popularity` |
+| `order` | string | `"asc"` | `asc` or `desc` |
+| `appIds` | string[] | — | Filter by one or more apps |
+| `collectionIds` | string[] | — | Filter by collection(s) |
+| `groupingValue` | string | — | Filter to a single item definition |
+| `searchString` | string | — | Search by item name |
+| `attributes` | array | — | Attribute filters ([see below](#attribute-filters)) |
+
+---
+
+## List individual listings
+
+Returns **each active listing separately**. Use this on item detail pages or when you need to show all listings for one item type sorted by price.
+
+<Tabs>
+  <Tab title="All listings (recommended)">
+    ```
+    POST /v3/itemListing/list
+    ```
+
+    ```bash
+    curl -X POST https://cloud.handcash.io/v3/itemListing/list \
+      -H "Content-Type: application/json" \
+      -d '{
+        "from": 0,
+        "to": 50,
+        "group": false,
+        "groupingValue": "ITEM_GROUPING_VALUE",
+        "sort": "price",
+        "order": "asc",
+        "appId": "YOUR_APP_ID"
+      }'
+    ```
+  </Tab>
+  <Tab title="Single groupingValue shortcut">
+    ```
+    POST /v3/market/items/listings
+    ```
+
+    ```bash
+    curl -X POST https://cloud.handcash.io/v3/market/items/listings \
+      -H "Content-Type: application/json" \
+      -d '{
+        "groupingValue": "ITEM_GROUPING_VALUE",
+        "from": 0,
+        "to": 50,
+        "sort": "price",
+        "order": "asc"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+### Listing parameters
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `group` | boolean | `false` | `true` = grouped catalog view; `false` = individual listings |
+| `appId` | string | — | Filter by app |
+| `collectionId` / `collectionIds` | string | — | Filter by collection |
+| `groupingValue` | string | — | Filter to one item definition |
+| `price` | number | — | Exact price filter (only when `group: false`) |
+| `sort` | string | — | `price`, `name`, or `popularity` (`popularity` only when `group: true`) |
+| `order` | string | — | `asc` or `desc` |
+
+<Tip>
+On catalog responses (`group: true`), `itemListing` is the **floor** (cheapest) listing for that item type. On listing responses (`group: false`), each row is one listing.
+</Tip>
+
+---
+
+## Response shape
+
+Catalog and listing endpoints return the same item envelope:
+
+```json
+{
+  "items": [
+    {
+      "id": "...",
+      "name": "Sword of Truth",
+      "groupingValue": "abc123",
+      "imageUrl": "https://...",
+      "description": "...",
+      "attributes": [
+        { "name": "Rarity", "value": "Legendary", "displayType": "string" }
+      ],
+      "collection": { "id": "...", "name": "My Collection" },
+      "app": { "id": "...", "name": "My Game", "iconUrl": "https://..." },
+      "isListing": true,
+      "count": 3,
+      "floorPriceInUsd": 5.0,
+      "itemListing": {
+        "id": "...",
+        "status": "active",
+        "price": 0.01,
+        "currencyCode": "BSV",
+        "denominatedIn": "BSV",
+        "fiatEquivalent": { "amount": 5.0, "currencyCode": "USD" },
+        "paymentRequestUrl": "https://pay.handcash.io/...",
+        "paymentRequestId": "...",
+        "listedAt": "2026-07-09T12:00:00.000Z"
+      }
+    }
+  ]
+}
+```
+
+### Fields you'll use in your UI
+
+| Field | Use for |
+| --- | --- |
+| `name`, `imageUrl`, `description` | Item card and detail page |
+| `attributes` | Rarity, stats, traits |
+| `collection.name` | Collection badge / breadcrumb |
+| `count` | "3 listings" badge (catalog only) |
+| `floorPriceInUsd` | Floor price label (catalog only) |
+| `itemListing.fiatEquivalent` | Display price in USD |
+| `itemListing.paymentRequestUrl` | Hosted checkout redirect |
+| `itemListing.paymentRequestId` | In-app checkout |
+
+---
+
+## Attribute filters
+
+Pass an `attributes` array on catalog requests to filter by item traits:
+
+```json
+{
+  "attributes": [
+    { "name": "Rarity", "displayType": "string", "operation": "equal", "value": "Legendary" },
+    { "name": "Power", "displayType": "number", "operation": "greaterOrEqual", "value": 50 },
+    { "name": "Class", "displayType": "string", "operation": "includes", "values": ["Warrior", "Mage"] }
+  ]
+}
+```
+
+| `displayType` | Allowed `operation` values |
+| --- | --- |
+| `string` | `equal`, `includes`, `matches` |
+| `number` | `equal`, `greater`, `lower`, `greaterOrEqual`, `lowerOrEqual` |
+
+Fetch available filter metadata for your app:
+
+```
+POST /v3/application/public/marketFilters
+```
+
+Body: `{ "appId": "YOUR_APP_ID" }`
+
+---
+
+## Supporting endpoints
+
+| Endpoint | Auth | Use |
+| --- | --- | --- |
+| `GET /v3/application/public` | No | List apps on the market |
+| `GET /v3/wallet/items/collections?appId=` | No | Collections for an app |
+| `GET /v3/wallet/items/topTraded` | No | Popular items |
+| `GET /v3/wallet/items/metrics?groupingValue=` | No | Volume, supply, active listings |
+| `GET /v3/wallet/items/definition/{groupingValue}` | No | Item definition details |
+| `GET /v3/general/search?searchString=` | Optional | Global market search |
+
+---
+
+## Pagination
+
+Use `from` / `to` for offset pagination. Request one extra row to detect a next page:
+
+```typescript
+const pageSize = 50;
+const from = page * pageSize;
+const to = from + pageSize + 1; // fetch one extra
+
+const { items } = await fetch('https://cloud.handcash.io/v3/market/items/catalog', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ from, to, appIds: [appId], sort: 'popularity', order: 'desc' }),
+}).then((r) => r.json());
+
+const hasNextPage = items.length > pageSize;
+const pageItems = items.slice(0, pageSize);
+```
+
+---
+
+## Buying a listing
+
+Every market listing is backed by a **payment request**. Choose the checkout path that fits your product:
+
+<Tabs>
+  <Tab title="Hosted checkout (simplest)">
+    Redirect the buyer to `itemListing.paymentRequestUrl`. HandCash hosts the payment page — no Connect auth required.
+
+    ```typescript
+    function buyListing(listing: { itemListing: { paymentRequestUrl: string } }) {
+      window.location.href = listing.itemListing.paymentRequestUrl;
+    }
+    ```
+
+    Best when you want the fastest integration or the buyer may not be logged into your app yet.
+  </Tab>
+  <Tab title="In-app checkout (Connect)">
+    Keep the buyer inside your app. They must have [authorized your app](/handcash-connect/getting-started) with the **Pay** permission.
+
+    `Connect.pay` sends money to a handle — it does **not** pay a payment request. Use the wallet endpoint instead:
+
+    ```
+    POST /v3/wallet/transactions/send/paymentRequest
+    ```
+
+    ```json
+    {
+      "paymentRequestId": "ITEM_LISTING_PAYMENT_REQUEST_ID",
+      "paymentContext": "quick_buy"
+    }
+    ```
+
+    Use the `paymentRequestId` from the listing response (`item.itemListing.paymentRequestId`). Sign the request with the user's Connect `authToken` (same OAuth signing as other wallet calls: `app-id`, `oauth-publickey`, `oauth-timestamp`, `oauth-signature`).
+
+    <Note>
+    This endpoint is not yet exposed on `@handcash/sdk`. Call the REST API from your backend with the stored `authToken`, the same way [market.handcash.io](https://market.handcash.io) does.
+    </Note>
+
+    To build a checkout UI, fetch public payment details first:
+
+    ```
+    GET /v3/paymentRequests/public/{paymentRequestId}
+    ```
+
+    Or resolve from the listing URL:
+
+    ```
+    GET /v3/wallet/paymentRequest?paymentRequestUrl={itemListing.paymentRequestUrl}
+    ```
+
+    On success the API returns a transaction record. The listing settles on-chain and the item transfers to the buyer automatically.
+  </Tab>
+</Tabs>
+
+---
+
+## After a sale
+
+To receive a webhook when a listing sells, configure your app `webhookUrl` and handle `item_listing_payment_completed`. See [Sales Webhook](/handcash-items/webhooks).
+
+<CardGroup cols={2}>
+  <Card title="Sales webhook" icon="webhook" href="/handcash-items/webhooks">
+    Handle `item_listing_payment_completed` when a P2P listing sells.
+  </Card>
+  <Card title="Payment requests" icon="credit-card" href="/handcash-pay/create-payment-request">
+    Create primary-sale payment requests for new item drops.
+  </Card>
+  <Card title="Read inventory" icon="box" href="/handcash-items/read-inventory">
+    Show items the buyer owns after purchase.
+  </Card>
+  <Card title="HandCash Connect" icon="wallet" href="/handcash-connect/getting-started">
+    Authorize users for in-app checkout with the Pay permission.
+  </Card>
+</CardGroup>

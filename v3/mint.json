@@ -60,9 +60,14 @@
         "handcash-items/getting-started",
         "handcash-items/create-items",
         "handcash-items/manage-items",
-        "handcash-items/craft-items",
-        "handcash-items/webhooks",
-        "handcash-items/market"
+        "handcash-items/craft-items"
+      ]
+    },
+    {
+      "group": "HandCash Market",
+      "pages": [
+        "handcash-items/market",
+        "handcash-items/webhooks"
       ]
     },
     {

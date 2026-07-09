@@ -1,0 +1,76 @@
+---
+title: Sales Webhook
+description: 'Receive notifications when an item sells on HandCash Market'
+---
+
+When a user sells an item on [HandCash Market](https://market.handcash.io) via a P2P listing, HandCash sends an HTTP `POST` to your app's `webhookUrl`.
+
+<Note>
+This webhook is for **market listing sales** only. Primary sales via payment requests use the [Payment Webhook](/v3/handcash-pay/webhooks). Peer-to-peer item sends do not trigger a webhook.
+</Note>
+
+## Setup
+
+Set `webhookUrl` on your application record. Your endpoint must accept HTTPS `POST` requests and return `200` when processed.
+
+## Event
+
+| Field | Value |
+| --- | --- |
+| `event` | `item_listing_payment_completed` |
+| `apiVersion` | `1.0` |
+
+## Payload
+
+```json
+{
+  "event": "item_listing_payment_completed",
+  "applicationId": "your-app-id",
+  "apiVersion": "1.0",
+  "created": "2026-07-09T15:30:00.000Z",
+  "data": {
+    "itemTransfer": {
+      "id": "transfer-id",
+      "label": "marketBuy",
+      "payment": {
+        "transactionId": "abc123...",
+        "currencyCode": "BSV",
+        "amount": 0.05,
+        "fiatEquivalent": {
+          "currencyCode": "USD",
+          "amount": 3.25
+        }
+      },
+      "items": [
+        {
+          "to": { "type": "user", "alias": "$buyer", "displayName": "Buyer" },
+          "from": { "type": "user", "alias": "$seller", "displayName": "Seller" },
+          "origin": "txid_0",
+          "name": "Sword of Truth",
+          "imageUrl": "https://..."
+        }
+      ],
+      "createdAt": "2026-07-09T15:30:00.000Z"
+    }
+  }
+}
+```
+
+## Security
+
+Verify the `handcash-signature` header on every request. It is an HMAC-SHA256 hex digest of the JSON body, keyed with your `appSecret`.
+
+```typescript
+import crypto from 'crypto';
+
+function verifySignature(body: object, appSecret: string, signature: string): boolean {
+  const expected = crypto.createHmac('sha256', appSecret).update(JSON.stringify(body)).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+}
+```
+
+## What does not trigger this webhook
+
+- User-to-user item sends (`transferItems`)
+- Primary sales completed via a payment request you created
+- Item creation or mint orders
