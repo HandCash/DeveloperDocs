@@ -5,8 +5,16 @@ description: 'Default spending limit and how users can change it'
 
 By default, connected apps have a daily spend limit (often $10). Users can change this in their account settings.
 
+Redirect users to update their limit with this deep link (opens the Limits panel on HandCash Market):
+
 ```text
-Users: Manage limit at https://market.handcash.io/my-account/account
+https://market.handcash.io/#limits
+```
+
+Full-page account settings (same Limits UI):
+
+```text
+https://market.handcash.io/my-account/limits
 ```
 
 You can programmatically read limits using spendable balances:
@@ -18,5 +26,3 @@ const client = sdk.getAccountClient('<AUTH_TOKEN>');
 const { data } = await Connect.getSpendableBalances({ client });
 console.log(data);
 ```
-
-
