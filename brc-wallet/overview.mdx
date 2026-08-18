@@ -1,0 +1,50 @@
+---
+title: Overview
+description: Beta developer docs for the HandCash BRC wallet (Desktop + Mobile) — BRC-100 apps, not Connect or Wallet API (WaaS)
+---
+
+<Warning>
+**Beta.** This section documents the **HandCash BRC wallet** (Desktop and Mobile). APIs, bridge ports, and permission UX may change while the product is in beta. Prefer [BRC-100](https://brc.dev/100) as the protocol source of truth; treat these pages as HandCash-specific guidance on top of it.
+</Warning>
+
+## What this section is for
+
+These pages are for developers building against the **HandCash BRC wallet** — the self-custodial Open BSV wallet that ships as:
+
+| Part | Role |
+|------|------|
+| **Desktop** | Electron shell + local [BRC-100](https://brc.dev/100) bridge |
+| **Mobile** | Capacitor shell over the same wallet UI core |
+| **Your app** | Talks to the wallet over the local bridge (or a conforming BRC-100 client) |
+
+It is **not** documentation for:
+
+| Product | Docs |
+|---------|------|
+| **HandCash Connect** (cloud OAuth / `@handcash/sdk`) | [v3 getting started](/v3/getting-started) |
+| **Wallet API (WaaS)** (`/v1/waas/*`) | [Wallet API getting started](/wallet-api/getting-started) |
+
+If your integration still uses Connect auth tokens or WaaS access keys, stay in those sections. Switch here when you target the user’s **local BRC wallet** (identity key, baskets, `createAction` / `internalizeAction`, permissions).
+
+## Mental model
+
+- The user holds keys in HandCash Desktop or Mobile.
+- Your app requests wallet methods over **BRC-100**.
+- On Desktop, HandCash exposes a **local HTTP bridge** (loopback) so web and native apps can call those methods with origin-gated permissions.
+- Custody stays with the user. Cloud messagebox / handle resolve are convenience services, not required for payments to succeed.
+
+## In this section
+
+- **[Getting started](/brc-wallet/getting-started)** — prerequisites, when to use the BRC wallet vs Connect / WaaS
+- **[Local bridge](/brc-wallet/local-bridge)** — connect to Desktop on loopback, origins, and migrate-shaped flows
+- **[User-controlled storage](/brc-wallet/oauth-storage)** — hand off key slices through the device share sheet with no HandCash host or provider OAuth
+
+## Protocol references
+
+- [BRC-100](https://brc.dev/100) — wallet ↔ application interface
+- [BRC-46](https://brc.dev/46) — output baskets
+- [BRC-29](https://brc.dev/29) — peer payments (when paying another HandCash / BRC identity)
+
+## Try it
+
+[HandCash App Lab](https://brc-cloud.bcryderman.workers.dev/app-lab) is a live BRC-100 widget board that talks to the local wallet bridge on this device.

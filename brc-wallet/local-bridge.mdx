@@ -1,0 +1,46 @@
+---
+title: Local bridge
+description: Connect a web or local app to the HandCash BRC wallet Desktop bridge (beta)
+---
+
+<Warning>
+**Beta — HandCash BRC wallet (Desktop).** Bridge ports, TLS, and origin allowlists can change. This page is for the **local BRC-100 bridge**, not cloud Connect or Wallet API.
+</Warning>
+
+## Endpoints
+
+When HandCash Desktop is running and unlocked, apps reach the wallet on loopback:
+
+| Role | URL |
+|------|-----|
+| Primary | `https://127.0.0.1:2121` |
+| Fallback | `http://127.0.0.1:3321` |
+
+Use the primary HTTPS endpoint when available; fall back to `3321` if the primary is unreachable (some environments reject the local certificate).
+
+## Ownership
+
+- **Desktop** owns the local BRC-100 bridge and the permission UX.
+- Your app must present a clear **origin** the wallet can approve or deny.
+- Method payloads should match [BRC-100](https://brc.dev/100). HandCash-specific migrate / claim helpers may be origin-gated to HandCash hosts.
+
+## Migrate-shaped flows
+
+HandCash’s public migrate and claim UX (e.g. `handcash.io/migrate`, handle claim) talk to this same Desktop bridge. Partner apps that mirror those contracts should keep Desktop and the web client in sync when methods or payloads change.
+
+For protocol context on peer payments and messagebox (convenience, not custody), see the BRC wallet overview and [brc.dev](https://brc.dev).
+
+## Checklist for a first integration
+
+1. User installs and unlocks **HandCash Desktop**.
+2. Your app probes `2121`, then `3321`.
+3. User grants your origin the permissions you request.
+4. You call standard BRC-100 methods against the bridge.
+5. You never treat cloud Connect `authToken` or WaaS access keys as substitutes for this path.
+
+## Related
+
+- **[Getting started](/brc-wallet/getting-started)**
+- **[Overview](/brc-wallet/overview)**
+- Protocol: [BRC-100](https://brc.dev/100)
+- Live board: [App Lab](https://brc-cloud.bcryderman.workers.dev/app-lab)

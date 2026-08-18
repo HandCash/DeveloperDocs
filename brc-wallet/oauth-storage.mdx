@@ -1,0 +1,103 @@
+---
+title: User-controlled storage
+description: Hand off BRC-140 key slices through the device share sheet without a HandCash host or provider OAuth (beta, BRC wallet)
+---
+
+<Warning>
+**Beta — BRC wallet.** This page is about **where apps and backups put private bytes** when integrating with the **HandCash BRC wallet**. It is not Connect, not Wallet API (WaaS), and not a requirement to use HandCash-hosted storage.
+</Warning>
+
+## The bar
+
+For wallet-related material (including **key slices / Shamir shares**):
+
+| Requirement | Target |
+|-------------|--------|
+| HandCash does **not** need to run a DB/host for that blob | Yes |
+| HandCash does **not** hold Google / Apple / Dropbox / GitHub **OAuth app** credentials for the user | Yes |
+| HandCash **cannot see** key slices or root key material | Yes — never upload plaintext shares to a HandCash operator |
+
+So: **no HandCash host and no HandCash OAuth keys** for this path — and **no plaintext slices** on any HandCash-operated endpoint.
+
+## Recommended: the device share sheet
+
+The wallet creates a 2-of-3 BRC-140 set and opens the operating system’s standard
+**Share** surface for each slice. The user chooses an account or app they already
+control, such as:
+
+- Google Drive, iCloud Drive, OneDrive, or Dropbox
+- a password manager or private notes app
+- email to an account the user controls
+- another device through the platform’s nearby-share option
+
+No provider is hard-coded. Save the first and second slices to **different**
+accounts or apps so one provider never holds enough shares to recover the wallet.
+After each handoff, the wallet requires the user to explicitly select
+**I saved this slice**. Merely opening Share, copying, or downloading does not
+mark the backup complete.
+
+| | |
+|--|--|
+| HandCash OAuth client ID / secret | **Not used** |
+| HandCash API keys | **Not used** |
+| HandCash visibility into key slices | **None** — HandCash is not a share target or transport |
+| Your own database | **Not required** |
+
+On Android this opens the native chooser directly. On desktop, Web Share is used
+when available and email/file handoff remains available as a fallback.
+
+**Alternatives with the same privacy bar**
+
+- **Manual export** — encrypted file / QR; user stores it themselves.
+- **User-owned endpoint** — user pastes their own WebDAV / S3 URL and credentials; HandCash is not the host.
+
+## What a destination can see
+
+A canonical BRC-140 share is itself recovery material. One share from a 2-of-3
+set cannot reconstruct the private key, but the account or app selected by the
+user may be able to read that one share.
+
+That is why the wallet requires two distinct handoffs and tells the user to keep
+them in separate places. HandCash does not receive either share. Users wanting
+an additional encryption layer can choose an encrypted password manager or
+encrypted vault as the share target.
+
+## Optional: provider OAuth APIs (apps, not HandCash custody)
+
+Some apps store **non-key** private state (drafts, preferences) via OAuth APIs:
+
+| Provider | Isolation |
+|----------|-----------|
+| **Google Drive** | Hidden `appDataFolder` |
+| **Apple iCloud (CloudKit)** | Key-Value or private DB |
+| **Dropbox** | `/Apps/{AppName}` |
+| **GitHub** | Private gist / repo (CLI / dev tools) |
+
+That path **does** require **your** OAuth app registration with that provider
+(client ID, often secret or PKCE). It does not require HandCash API keys or a
+HandCash database, but the BRC wallet does not need it for key-slice handoff:
+the operating-system share surface already delegates destination choice to the user.
+
+### What you still need vs what you don’t (OAuth API path)
+
+| | Needed? |
+|--|---------|
+| HandCash DB / file host for this blob | **No** |
+| HandCash API keys / Connect / WaaS for this blob | **No** |
+| **Your** OAuth app with Google / Apple / Dropbox / GitHub | **Yes** (this path only) |
+| OAuth redirect / PKCE | Usually yes for web / native |
+
+## Relating this to the BRC wallet
+
+| Concern | Where it belongs |
+|---------|------------------|
+| Keys, UTXOs, `createAction` | HandCash BRC wallet (local) |
+| Key slices / recovery blobs | Two separate user-chosen Share destinations; HandCash is not in the path |
+| App preferences / drafts | Optional OAuth API or same encrypted folder |
+| Connect / WaaS accounts | Different products — [Connect](/v3/getting-started) / [Wallet API](/wallet-api/getting-started) |
+
+## Next
+
+- **[Overview](/brc-wallet/overview)**
+- **[Getting started](/brc-wallet/getting-started)**
+- **[Local bridge](/brc-wallet/local-bridge)**
