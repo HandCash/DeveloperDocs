@@ -47,6 +47,16 @@
       ]
     },
     {
+      "group": "BRC wallet",
+      "tag": "Beta",
+      "pages": [
+        "brc-wallet/overview",
+        "brc-wallet/getting-started",
+        "brc-wallet/local-bridge",
+        "brc-wallet/oauth-storage"
+      ]
+    },
+    {
       "group": "v3 / Getting Started",
       "pages": [
         "v3/getting-started"

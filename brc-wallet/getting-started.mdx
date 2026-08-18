@@ -1,0 +1,52 @@
+---
+title: Getting started
+description: Start building against the HandCash BRC wallet (beta) — Desktop / Mobile, not Connect or WaaS
+---
+
+<Warning>
+**Beta — BRC wallet only.** These steps apply to apps that integrate with **HandCash Desktop or Mobile** over [BRC-100](https://brc.dev/100). They do **not** apply to Connect (`authToken` + `@handcash/sdk`) or Wallet API (`/v1/waas/*`).
+</Warning>
+
+## Prerequisites
+
+1. **HandCash Desktop** (or Mobile) installed and unlocked with a funded wallet.
+2. A web or native app that can reach the local BRC-100 bridge (Desktop) or a conforming wallet client.
+3. Familiarity with BRC-100 method names (`createAction`, `listOutputs`, `internalizeAction`, …) from [brc.dev/100](https://brc.dev/100).
+
+## Choose the right HandCash surface
+
+| You need… | Use |
+|-----------|-----|
+| Existing HandCash **cloud** users authorize your app | [Connect](/v3/getting-started) |
+| Embedded wallets you create for **your** users (email) | [Wallet API (WaaS)](/wallet-api/getting-started) |
+| Talk to the user’s **self-custodial BRC wallet** on device | **This section (BRC wallet)** |
+
+## First connection (Desktop)
+
+On Desktop, HandCash runs a **local bridge** on loopback so apps can call BRC-100 methods with user permission:
+
+- Primary: `https://127.0.0.1:2121`
+- Fallback: `http://127.0.0.1:3321`
+
+See **[Local bridge](/brc-wallet/local-bridge)** for origins, TLS quirks, and migrate-shaped flows.
+
+Typical first call after the user has unlocked the wallet and approved your origin:
+
+1. Discover / wait until the bridge answers.
+2. Request authentication / permission for the methods you need.
+3. Call wallet methods (e.g. balance via `listOutputs`, payments via `createAction`).
+
+Exact JSON shapes follow BRC-100; HandCash’s permission UI gates origins and method scopes.
+
+You can also open [App Lab](https://brc-cloud.bcryderman.workers.dev/app-lab) with Desktop unlocked and run each method from the browser.
+
+## What stays out of scope here
+
+- **Handles & PeerPay-by-name** — BRC-169 resolution is documented as it stabilizes; cloud Connect handles are a different product surface.
+- **Items / 1Sat baskets** — wallet filing uses BRC-46 baskets (e.g. `1sat`); app-facing permission schemes are evolving — treat as beta.
+- **Mobile deep link / Capacitor bridge** — same UI core as Desktop; native bridge details will land in a follow-up page in this section.
+
+## Next
+
+- **[Local bridge](/brc-wallet/local-bridge)** — ports, origins, and connecting from a web app
+- **[Overview](/brc-wallet/overview)** — how this section relates to Connect and WaaS
