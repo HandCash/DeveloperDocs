@@ -88,12 +88,12 @@ Supported collectable scopes:
 | Basket | Required filter tags | Meaning |
 | --- | --- | --- |
 | `p 1sat all` | none | All collectables the user grants to this app. |
-| `p 1sat collection` | `collection:<id>` | One or more collections. |
-| `p 1sat app` | `app:<id>` | Items associated with an app. |
-| `p 1sat creator` | `creator:<identity-key>` | Items associated with a creator. |
-| `p 1sat id` | `id:<row-id>` | Exact BRC-164 item rows. |
+| `p 1sat collection` | `collection:{collection-id}` | One or more collections. |
+| `p 1sat app` | `app:{app-id}` | Items associated with an app. |
+| `p 1sat creator` | `creator:{identity-key}` | Items associated with a creator. |
+| `p 1sat id` | `id:{row-id}` | Exact BRC-164 item rows. |
 | `p bsv21 all` | none | All BSV-21 tokens the user grants. |
-| `p bsv21 id` | `id:<token-id>` or `bsv21:<token-id>` | Exact token identities. |
+| `p bsv21 id` | `id:{token-id}` or `bsv21:{token-id}` | Exact token identities. |
 
 HandCash advertises the `1sat` profile capabilities BRC-147, BRC-150,
 BRC-164, and BRC-165. BRC-150 provenance is basket metadata used to verify an
