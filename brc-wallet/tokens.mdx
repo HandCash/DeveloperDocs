@@ -17,7 +17,7 @@ A fungible holding is a set of **one-satoshi tips**, each carrying an integer am
 | Tip | A one-satoshi output carrying an amount of that token |
 | Amount | An integer in base units, as a string — apply `dec` only for display |
 
-The canonical encoding is **BRC-162 binary** value locks. Legacy BRC-161 JSON inscriptions (`application/bsv-20`) and BRC-175 `1sat-ft` exist for reading older holdings; the wallet refuses to emit `1sat-ft` on a send or burn, so do not build new products on them.
+The fungible-token path is **BSV-21 with BRC-162 binary value locks**. It provides the scaling model for token balances and transfers; there is no separate 1Sat fungible-token product surface.
 
 Token calls always prompt, and token view is a separate grant from item view.
 
@@ -26,7 +26,7 @@ Token calls always prompt, and token view is a separate grant from item view.
 | Basket | Required tag |
 |--------|--------------|
 | `p bsv21 all` | none |
-| `p bsv21 id` | `bsv21:<tokenId>` (legacy `id:<tokenId>` also matches) |
+| `p bsv21 id` | `bsv21:<tokenId>` |
 
 ```typescript
 const tokens = await wallet.listOutputs({
@@ -47,7 +47,7 @@ const robot = await wallet.listOutputs({
 });
 ```
 
-Sum the tips yourself; there is no per-token balance method. A third-party grant is an **allowlist of token ids**, so asking for `all` later never widens it — the user must approve each new token. Legacy `1sat-ft` rows are never returned to apps, and `listOutputs({ basket: 'bsv21' })` returns `400 USE_PBSV21_SCOPE`.
+Sum the tips yourself; there is no per-token balance method. A third-party grant is an **allowlist of token ids**, so asking for `all` later never widens it — the user must approve each new token. `listOutputs({ basket: 'bsv21' })` returns `400 USE_PBSV21_SCOPE`.
 
 ## Token vocabulary
 
@@ -168,7 +168,7 @@ Invariants the wallet enforces, and your app must respect:
 5. **Parent bodies must be provable.** Supply `inputBEEF` covering the spent tips, or verification fails closed.
 6. **Cosigned tips do not spend with a plain unlock**, and covenant-locked tips are refused outright.
 
-Failures are named rather than silent: insufficient units, a zero-amount authority spend, an attempt to emit `application/1sat-ft+json`, an invalid recipient, missing source transactions, conservation mismatches, and `BRC-176 prove failed` all surface as errors instead of a downgraded transaction.
+Failures are named rather than silent: insufficient units, a zero-amount authority spend, an invalid recipient, missing source transactions, conservation mismatches, and `BRC-176 prove failed` all surface as errors instead of a downgraded transaction.
 
 ## Burn tokens
 
@@ -202,7 +202,7 @@ const { accepted } = await wallet.internalizeAction({
 });
 ```
 
-The named output must be one satoshi, must pay the wallet, and must decode as a BRC-162 value lock (or a legacy JSON `transfer` matching the same token id and amount). Anything else is refused with a named reason such as an ambiguous token output or no token tip paying this wallet.
+The named output must be one satoshi, must pay the wallet, and must decode as a BRC-162 value lock matching the same token id and amount. Anything else is refused with a named reason such as an ambiguous token output or no token tip paying this wallet.
 
 ## Verification
 
@@ -230,8 +230,6 @@ This drops local tracking only — it does not spend or destroy the output — a
 | Attempt | Result |
 |---------|--------|
 | `listOutputs({ basket: 'bsv21' })` | `400 USE_PBSV21_SCOPE` |
-| `listOutputs({ basket: '1sat-ft' })` | Empty list, HTTP `200` |
-| Minting or sending `1sat-ft` / new JSON inscriptions | Refused on the send path |
 | `getTokenIcon` | HandCash hosts only, `403 MARKET_ORIGIN_DENIED` |
 | Auto-pay covering a token mint, send, or release | Always prompts |
 | Cosigned token sends through the wallet's own path | Not wired yet |
