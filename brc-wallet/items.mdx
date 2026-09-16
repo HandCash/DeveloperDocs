@@ -1,33 +1,52 @@
 ---
 title: Collectables
-description: 'Read, mint, transfer, and receive 1Sat items with the BRC wallet'
+description: 'Read, mint, transfer, receive, and verify 1Sat items with the BRC wallet'
 ---
 
 <Warning>
 **Beta — BRC wallet only.** Desktop / Mobile over [BRC-100](https://brc.dev/100), not Connect Items.
 </Warning>
 
-Items are one-satoshi ordinal outputs the wallet holds in a basket. Your app builds the inscription script; the wallet funds it, signs it, files it, and shows the user what they are approving.
+## The model
 
-Prerequisites: an [authenticated wallet](/brc-wallet/payments#connect) and an item view or mint permission the user has granted your origin.
+A collectable is a **one-satoshi ordinal output**. The wallet holds it in storage basket `1sat`, and your app addresses it three different ways depending on what you are doing:
+
+| Concept | Value | Used for |
+|---------|-------|----------|
+| Origin | The genesis outpoint, `<txid>_0` | Stable identity of the item across owners |
+| Tip | The current unspent one-satoshi outpoint | The thing a transfer spends |
+| Row id | A wallet-assigned key, tag `id:<key>` | Naming one held row in reads and spends |
+
+Your app builds the inscription script. The wallet funds the transaction, signs it, files the output, and shows the user what they are approving. Item calls always prompt — auto-pay never covers them.
+
+Prerequisites: a [connected origin](/brc-wallet/permissions#connect-an-origin) and, for reads, an item view grant.
 
 ## Read inventory
 
-Ask for the narrowest scope your screen needs. Baskets follow `p 1sat <scope>` where the scope is one of `all`, `collection`, `app`, `creator`, or `id`, and the filter values live in tags.
+Reads use scoped permission baskets, never the storage basket. See [Permissions and scopes](/brc-wallet/permissions#scoped-inventory-views) for the full grammar and grant behaviour.
+
+| Basket | Required tag |
+|--------|--------------|
+| `p 1sat all` | none |
+| `p 1sat collection` | `collection:<id>` |
+| `p 1sat app` | `app:<id>` |
+| `p 1sat creator` | `creator:<id>` |
+| `p 1sat id` | `id:<rowId>` |
 
 ### All items
 
 ```typescript
 const inventory = await wallet.listOutputs({
   basket: 'p 1sat all',
-  includeTags: true,
   includeCustomInstructions: true,
   limit: 50,
   offset: 0
 });
 
-console.log(`${inventory.totalOutputs} items held`);
+console.log(`${inventory.totalOutputs} rows visible to this app`);
 ```
+
+`totalOutputs` is what your grant exposes, not the wallet's true holdings. A user who approved two collections sees two collections here, with HTTP `200` and no error.
 
 ### One collection
 
@@ -36,31 +55,60 @@ const robots = await wallet.listOutputs({
   basket: 'p 1sat collection',
   tags: ['collection:robots'],
   tagQueryMode: 'all',
-  includeTags: true,
   includeCustomInstructions: true,
   limit: 50
 });
 ```
 
-### One exact item
+### One exact row, with its transaction
 
 ```typescript
 const item = await wallet.listOutputs({
   basket: 'p 1sat id',
   tags: [`id:${rowId}`],
   tagQueryMode: 'all',
-  includeTags: true,
   includeCustomInstructions: true,
   include: 'entire transactions',
   limit: 1
 });
 ```
 
-<Note>
-Bare basket `1sat` is wallet-internal and returns `USE_P1SAT_SCOPE`. A scope other than `all` needs a matching tag, or the wallet returns `MISSING_P1SAT_SCOPE_TAG`.
-</Note>
+A specific row id resolves without a prompt, which makes it the right call for a detail screen after the user already picked an item. Tags are always returned for item reads.
+
+## Item vocabulary
+
+### Tags
+
+| Tag | Meaning | Written by |
+|-----|---------|-----------|
+| `ordinal` | Protocol marker | Your app; the wallet adds it on its own imports |
+| `origin:<txid>.<vout>` | Genesis outpoint | Your app |
+| `name:<text>` | Display name, shown in prompts | Your app |
+| `app:<id>` | Owning app, up to 40 characters | Your app |
+| `collection:<id>` | Collection, up to 80 characters | Your app |
+| `creator:<id>` | Creator, a view filter axis only | Your app |
+| `content:<outpoint>` | Shared media output for derivative items | Your app |
+| `id:<key>` | Held-row key | **The wallet**, unless you supply one |
+
+An item with none of `name`, `app`, `collection`, `content`, or `id` is invisible to third-party apps, so always tag at least a name.
+
+### `customInstructions`
+
+Send a JSON string. The wallet reads these fields:
+
+| Field | Meaning |
+|-------|---------|
+| `origin` | Genesis outpoint in `<txid>_<vout>` form |
+| `name` | Display name |
+| `app` | Owning app id |
+| `collectionId` | Collection binding used when matching view grants |
+| `content` | Shared media outpoint for derivative items |
+| `creator` | Creator, used as a view-matching fallback |
+| `provenance` | BRC-150 authenticity proof — wallet-written on send, see below |
 
 ## Mint an item
+
+An item mint is a `createAction` with **no inputs** and at least one one-satoshi output in an item basket:
 
 ```typescript
 const { txid } = await wallet.createAction({
@@ -71,7 +119,7 @@ const { txid } = await wallet.createAction({
       lockingScript: ordinalInscriptionScript,
       satoshis: 1,
       outputDescription: 'Robot #42 collectable',
-      basket: 'p 1sat app',
+      basket: '1sat',
       tags: ['ordinal', 'app:robot-foundry', 'collection:robots', 'name:Robot #42'],
       customInstructions: JSON.stringify({
         name: 'Robot #42',
@@ -84,11 +132,13 @@ const { txid } = await wallet.createAction({
 });
 ```
 
-The basket and tags index the item; they do not create the inscription. Validate the script against the 1Sat protocol before you send it. The wallet stamps its own row ID so later reads can address this exact item.
+The wallet stamps a row id onto the output tags so you can address this exact item later. Baskets and tags index the item; they never create the inscription, so validate the script against the 1Sat protocol before you send it.
+
+The user sees a **Mint item** prompt with your description and the item name from the `name:` tag. Refusal returns `403 ACTION_DENIED`; funding problems return `400 INSUFFICIENT_FUNDS` or `INSUFFICIENT_OR_STALE_FUNDS`.
 
 ## Transfer an item
 
-A transfer spends the held one-satoshi tip and creates the next one. Name the held row with a `p 1sat input id <rowId>` label so the wallet can resolve the item you mean:
+A transfer spends the held tip and creates the next one. Name the held row with a spend label so the wallet knows which item you mean:
 
 ```typescript
 const { txid } = await wallet.createAction({
@@ -112,9 +162,15 @@ const { txid } = await wallet.createAction({
 });
 ```
 
-The label must resolve to exactly one held row, and that outpoint must appear in the action. If your app supplies `unlockingScriptLength` instead of a script, finish the returned reference with [`signAction`](/brc-wallet/payments#stage-and-sign-an-action) — the wallet never exposes a root private key or invents your unlock.
+The label grammar is exactly `p 1sat input id <rowId>`. Each label must resolve to exactly one held row **and** that row's outpoint must appear in `inputs`, or the call fails with `400 INVALID_P1SAT_SPEND` before the user is ever prompted.
 
-A burn is the same call with a protocol-valid terminal output. Never fall back to a plain payment when an item path fails.
+Supply `inputBEEF` for the tip's source transactions. If you send `unlockingScriptLength` instead of a script, you get a staged transaction back and must finish that exact reference with [`signAction`](/brc-wallet/payments#stage-and-sign-an-action) — the wallet does not hold your unlock recipe and never exposes a root private key.
+
+Covenant-locked tips cannot be spent with a plain P2PKH unlock; the wallet refuses rather than guessing. If a tip has gone missing on chain, that is a wallet-side abandon in HandCash, not something an app resolves with `relinquishOutput`.
+
+### Burning
+
+There is no burn method for apps. A burn is a transfer whose output is a protocol-valid terminal spend that your app constructs. Never turn a failed item path into a plain payment.
 
 ## Receive an item
 
@@ -128,19 +184,12 @@ const { accepted } = await wallet.internalizeAction({
       outputIndex: 0,
       protocol: 'basket insertion',
       insertionRemittance: {
-        basket: 'p 1sat app',
-        tags: [
-          'ordinal',
-          'app:robot-foundry',
-          'collection:robots',
-          `origin:${originOutpoint}`,
-          'name:Robot #42'
-        ],
+        basket: '1sat',
+        tags: ['ordinal', `origin:${originTxid}.${originVout}`, 'name:Robot #42', 'app:robot-foundry'],
         customInstructions: JSON.stringify({
-          origin: originOutpoint,
+          origin: `${originTxid}_${originVout}`,
           name: 'Robot #42',
-          app: 'robot-foundry',
-          provenance: brc150Provenance
+          app: 'robot-foundry'
         })
       }
     }
@@ -148,21 +197,63 @@ const { accepted } = await wallet.internalizeAction({
 });
 ```
 
-Include the BRC-150 provenance when the sender supplied it — that is what lets HandCash show the item as verified instead of unproven. Do not tell the sender the delivery succeeded until this call resolves.
+`protocol` must be the string `basket insertion`, and the remittance basket is the storage basket `1sat`.
 
-## Stop tracking an item
+<Warning>
+Keep `insertionRemittance.customInstructions` small — identity fields only. The receive path caps it near 1,000 characters, so a full BRC-150 proof does not fit. The wallet rebuilds and verifies provenance locally instead.
+</Warning>
+
+The wallet validates the transaction before accepting it. Do not tell the sender a delivery succeeded until this call resolves. The user sees a **Receive item** prompt the first time; after that a stored receive grant can carry it.
+
+## Authenticity
+
+HandCash shows an item as verified only when a complete **BRC-150 v2** proof checks out. The proof is a local object in `customInstructions.provenance`:
+
+```typescript
+type Provenance = {
+  v: 2;
+  origin: string;      // genesis outpoint
+  tip: string;         // current outpoint
+  path: string[];      // tip → origin lineage
+  beefB64: string;     // BEEF covering every hop
+  contentType?: string;
+};
+```
+
+What the wallet checks: the path starts at the tip and ends at the origin, every hop is an exact parent spend, one-satoshi continuity holds throughout, and the origin carries a valid ordinal envelope.
+
+| Outcome | What the user sees |
+|---------|--------------------|
+| Complete BRC-150 proof | Verified |
+| Missing or incomplete proof | Unproven, with identity resolved by an indexer |
+
+Two rules matter for app authors. Provenance is **local metadata** — it does not ride along on a P2PKH lock, so a recipient's wallet reconstructs it. And an oversized proof is **omitted, never truncated**: the wallet's cap is 400,000 characters of BEEF, above which the item stays unproven rather than carrying a partial lineage.
+
+## Release a row
 
 ```typescript
 await wallet.relinquishOutput({
-  basket: 'p 1sat id',
+  basket: 'p 1sat all',
   output: heldItemOutpoint
 });
 ```
 
-This removes the wallet's record of the output. It is not a burn and it does not move coins.
+This drops the wallet's record of the output. It is not a burn, it moves no coins, and it prompts as **Release item**. Use `p 1sat all` here: scoped forms that require a tag cannot carry one on this call.
+
+## Not available to apps
+
+| Attempt | Result |
+|---------|--------|
+| `listOutputs({ basket: '1sat' })` | `400 USE_P1SAT_SCOPE` |
+| `listOutputs({ basket: '1sat-ft' })` | Empty list, HTTP `200` |
+| A persistent "all items" grant | Converted to a filtered collection and app ceiling |
+| Auto-pay covering an item mint, send, or release | Always prompts |
+| Wallet-side burn or abandon | HandCash UI only |
+| Market listing and purchase methods | HandCash hosts only, `403 MARKET_ORIGIN_DENIED` |
+| BRC-156 soft-latch | Removed; authenticity is BRC-150 only |
 
 ## Next steps
 
 - [Tokens](/brc-wallet/tokens)
+- [Permissions and scopes](/brc-wallet/permissions)
 - [Signing and encryption](/brc-wallet/signing)
-- [Wallet interactions](/brc-wallet/interactions)

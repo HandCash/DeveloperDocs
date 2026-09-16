@@ -79,17 +79,26 @@ Do not retry a mutating request blindly after a transport timeout: the wallet
 may have completed it after the caller disconnected. Reconcile by label,
 transaction ID, or application protocol state first.
 
+## Deadlines
+
+The bridge holds your request while the user decides: roughly **120 seconds**
+for reads and prompts, **300 seconds** for spends. Past that you get
+`503 WALLET_BRIDGE_TIMEOUT` for a read or `503 WALLET_BRIDGE_PENDING` for a
+spend, and `WALLET_BRIDGE_PENDING` may still complete afterwards. If your HTTP
+client disconnects, the wallet cancels the pending prompt.
+
+Other transport failures are `503 WALLET_BRIDGE_UNAVAILABLE` when the wallet
+window cannot answer and `500 HTTP_BRIDGE_ERROR` for anything else.
+
 ## Origin and permission rules
 
-- Public chain/discovery calls do not connect an app.
-- `isAuthenticated` is silent.
-- `waitForAuthentication` opens the origin connection prompt.
-- Transaction, signature, disclosure, and destructive methods may open a
-  second action-specific prompt.
-- Item, token, and index reads have separate scopes; a general connection does
-  not expose all wallet inventory.
-- Market, migration, handle-claim, and administrative helpers are restricted
-  to HandCash-owned hosts.
+Your origin identifies your app, and the wallet gates methods in tiers: public
+discovery, a one-time connection, per-action approval, and separate scoped
+grants for item, token, and catalog reads. Market, migration, handle-claim, and
+administrative helpers are restricted to HandCash-owned hosts.
+
+Full rules, grant behaviour, and every permission error code:
+**[Permissions and scopes](/brc-wallet/permissions)**.
 
 ## Checklist for a first integration
 
@@ -105,6 +114,7 @@ transaction ID, or application protocol state first.
 - **[Getting started](/brc-wallet/getting-started)**
 - **[Wallet interactions](/brc-wallet/interactions)**
 - **[Payments and actions](/brc-wallet/payments)**
+- **[Permissions and scopes](/brc-wallet/permissions)**
 - **[Overview](/brc-wallet/overview)**
 - Protocol: [BRC-100](https://brc.dev/100)
 - Live board: [App Lab](https://brc-cloud.bcryderman.workers.dev/app-lab)

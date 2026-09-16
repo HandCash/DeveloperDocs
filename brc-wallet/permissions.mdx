@@ -1,0 +1,197 @@
+---
+title: Permissions and scopes
+description: 'How the BRC wallet identifies your app, which calls prompt the user, and how scoped item, token, and catalog views work'
+---
+
+<Warning>
+**Beta — BRC wallet only.** Desktop / Mobile over [BRC-100](https://brc.dev/100).
+</Warning>
+
+Three independent gates decide whether a call succeeds:
+
+1. **Origin** — is your app connected at all?
+2. **Action approval** — did the user approve this specific transaction, signature, or disclosure?
+3. **Scoped view** — did the user grant a view of the items, tokens, or catalog you asked for?
+
+A connection grants none of the others, and an item view never implies a token view.
+
+## How the wallet identifies your app
+
+The wallet resolves your identity per request:
+
+1. The browser-supplied `Origin` header, reduced to its host.
+2. Otherwise the `originator` header, parsed as a URL and reduced to its host.
+3. Otherwise no origin, which is the wallet's own internal path — not available to apps.
+
+Hosts are lowercased with `www.` stripped, so `https://App.Example.com/x` and `https://www.app.example.com` are the same app. `localhost` and `127.0.0.1` are different apps. Grants are stored per wallet account, so switching accounts in HandCash starts from a clean slate.
+
+Always send `originator` when you are not in a browser. Never claim another site's origin.
+
+## Method tiers
+
+| Tier | Behaviour | Methods |
+|------|-----------|---------|
+| Public | No connection, no prompt | `getVersion`, `getNetwork`, `getHeight`, `getHeaderForHeight`, `GET /health` |
+| Silent | Answers without prompting | `isAuthenticated` |
+| Connect | Opens the connection prompt once per origin | `waitForAuthentication` |
+| Action | Needs a connection, then approval per call | `createAction`, `signAction`, `internalizeAction`, `relinquishOutput`, `relinquishCertificate`, `acquireCertificate`, `proveCertificate`, `createSignature`, `encrypt`, `decrypt`, `revealCounterpartyKeyLinkage`, `revealSpecificKeyLinkage`, `removeIndexExpansion` |
+| Connected | Needs a connection, no extra prompt | `getPublicKey`, `getBalance`, `abortAction`, `listActions`, `verifySignature`, `createHmac`, `verifyHmac`, `listCertificates`, `discoverByIdentityKey`, `discoverByAttributes`, `listIndexExpansions` |
+| Scoped view | Needs a connection, then a view grant | `listOutputs` on item, token, or index baskets; `installIndexExpansion`, `syncIndexExpansion`, `listIndexExpansionEntries`, `overlayLookup` |
+
+## Connect an origin
+
+```typescript
+const { authenticated } = await wallet.isAuthenticated();
+
+if (!authenticated) {
+  const result = await wallet.waitForAuthentication();
+  if (!result.authenticated) return; // The user declined.
+}
+```
+
+`isAuthenticated` never prompts, so it is safe on page load. A declined connection returns `{ authenticated: false }` with HTTP `200` from `waitForAuthentication`; any other method on an unconnected origin returns `401 NOT_AUTHENTICATED`, and a declined origin returns `403 PERMISSION_DENIED`.
+
+Grants persist across restarts. The user can disconnect your app in HandCash settings, which also clears its auto-pay and spending limit. While the wallet is locked, everything except `GET /health` and `GET /manifest.json` returns `503 WALLET_LOCKED`.
+
+## Action approval
+
+These always prompt, every time, and are never covered by Pay or auto-pay:
+
+- Item mints, item sends, item releases
+- Token mints, token sends, token releases
+- `createSignature`, `encrypt`, `decrypt`, key-linkage reveals, certificate acquisition and disclosure
+
+These can proceed without a prompt once the user has opted in:
+
+| Call | Skips the prompt when |
+|------|-----------------------|
+| `createAction` / `signAction` for plain BSV | The user enabled auto-pay for your origin and the payment is inside the limit |
+| `internalizeAction` for plain BSV | The user left "accept funds automatically" on, which is the default at connect |
+| `internalizeAction` for an item or token | The user previously approved a receive from your origin |
+| `proveCertificate` | Within 20 seconds of connecting, or already approved this session |
+
+Concurrent duplicate requests from one origin may share a single prompt, except for `createSignature`, `createAdminIdentityProof`, and market mutations, which always get their own.
+
+### Auto-pay and spending limits
+
+Auto-pay is the user's setting, not an API. When they enable it, the default ceiling is **10 USD per 24 hours**, and each payment must also fit under that per-payment cap. Spending is counted from your origin's payment activity, and item activity never counts against it.
+
+Your manifest can propose a monthly cap instead, which the wallet reads from `metanet.groupPermissions.spendingAuthorization` (Babbage's `babbage.groupPermissions` is also accepted):
+
+```json
+{
+  "metanet": {
+    "groupPermissions": {
+      "spendingAuthorization": { "amount": 50000, "description": "Monthly game purchases" }
+    }
+  }
+}
+```
+
+`amount` is satoshis per UTC calendar month. The wallet fetches `manifest.json` from your origin while the connect prompt is already open and gives up after 1.5 seconds, so keep it fast and cacheable. A granted monthly cap replaces the USD window, but it never enables silent payments on its own — the user must still turn auto-pay on.
+
+## Scoped inventory views
+
+Reads of items, tokens, and catalog packs go through permission baskets, not storage baskets. The form is `p <scheme> <scope>`, and filter values go in tags rather than in the basket name.
+
+| Basket | Scope | Required tag |
+|--------|-------|--------------|
+| `p 1sat all` | Every collectable the wallet holds | none |
+| `p 1sat collection` | One or more collections | `collection:<id>` |
+| `p 1sat app` | One or more apps | `app:<id>` |
+| `p 1sat creator` | One or more creators | `creator:<id>` |
+| `p 1sat id` | Exact wallet rows | `id:<rowId>` |
+| `p bsv21 all` | Every token | none |
+| `p bsv21 id` | Specific tokens | `bsv21:<tokenId>` or `id:<tokenId>` |
+| `p index read` | A catalog pack's cache | pack resolved from the basket |
+
+Scope tokens are lowercase and exact. Storage baskets (`1sat`, `bsv21`) are wallet-internal and refused here.
+
+Where each form belongs:
+
+| Field | Use |
+|-------|-----|
+| `listOutputs({ basket })` | The scoped `p …` basket above |
+| `createAction` output `basket` | The storage basket: `1sat` or `bsv21` |
+| `internalizeAction` `insertionRemittance.basket` | The storage basket: `1sat` or `bsv21` |
+| `relinquishOutput({ basket })` | `p 1sat all` or `p bsv21 all` — scoped forms that need a tag cannot carry one here |
+
+### What a grant actually returns
+
+- A grant is a **ceiling**, and the wallet filters results down to it. A narrower grant returns fewer outputs with HTTP `200`, not an error.
+- Only a refusal at the prompt produces `403 ITEM_VIEW_DENIED` or `403 TOKEN_VIEW_DENIED`.
+- Third-party apps never hold a persistent "all" grant. Asking for `p 1sat all` turns into a filtered grant over the collections and apps the user approved, so plan for a subset and paginate.
+- `p 1sat id` with a specific row id is a narrow lookup and resolves without a prompt.
+- Item view and token view are separate grants. Holding one and calling the other prompts again.
+- Rows with no identifying metadata, and legacy `1sat-ft` rows, are never returned to third-party apps.
+
+### Catalog packs
+
+Catalog packs (index expansions) let your app read a shared index offline and query a live overlay through it:
+
+| Method | Grant |
+|--------|-------|
+| `listIndexExpansions` | Connection only |
+| `installIndexExpansion` | Install approval, recorded per pack |
+| `syncIndexExpansion` | Sync approval, reusing the install grant |
+| `listIndexExpansionEntries` | Read approval per pack |
+| `overlayLookup` | Overlay approval per pack or lookup service |
+| `removeIndexExpansion` | Action approval |
+
+Reading a pack through `listOutputs` uses `p index read <packId>`; using `p index install` or `p index sync` there returns `400 INVALID_INDEX_BASKET`.
+
+## Errors
+
+| HTTP | Code | Meaning |
+|------|------|---------|
+| `503` | `WALLET_LOCKED` | Desktop is running but locked. |
+| `401` | `NOT_AUTHENTICATED` | Call `waitForAuthentication` first. |
+| `403` | `PERMISSION_DENIED` | The user declined the connection. |
+| `403` | `ACTION_DENIED` | The user declined this transaction or signature. |
+| `403` | `ITEM_VIEW_DENIED` / `TOKEN_VIEW_DENIED` | The user declined the inventory view. |
+| `403` | `INDEX_INSTALL_DENIED` / `INDEX_SYNC_DENIED` / `INDEX_READ_DENIED` / `OVERLAY_LOOKUP_DENIED` | The user declined a catalog request. |
+| `403` | `MARKET_ORIGIN_DENIED` / `MIGRATION_ORIGIN_DENIED` | Host-restricted method called from another origin. |
+| `409` | `ACTION_IN_PROGRESS` | The same market action is already running. |
+| `400` | `USE_P1SAT_SCOPE` / `USE_PBSV21_SCOPE` | You sent a storage basket where a scoped basket belongs. |
+| `400` | `INVALID_P1SAT_SCOPE` / `INVALID_PBSV21_SCOPE` | The scope token is not one of the allowed values. |
+| `400` | `MISSING_P1SAT_SCOPE_TAG` / `MISSING_PBSV21_SCOPE_TAG` | The scope needs at least one matching tag. |
+| `400` | `UNSUPPORTED_P_BASKET` | Only the `1sat`, `bsv21`, and `index` schemes exist. |
+| `400` | `INVALID_INDEX_BASKET` | Use the index methods, or `p index read <packId>`. |
+| `400` | `INVALID_P1SAT_SPEND` | A `p 1sat input id` label did not resolve to one held row that the action spends. |
+| `400` | `INSUFFICIENT_FUNDS` / `INSUFFICIENT_OR_STALE_FUNDS` / `DOUBLE_SPENT` / `CHANGE_CHAINING_REQUIRED` | The spend failed its pre-flight check. |
+| `503` | `OFFLINE_PAYMENTS_DISABLED` | A mutating payment was refused while offline. |
+
+## Deadlines
+
+The bridge holds a request while the user decides: about **120 seconds** for reads and prompts, and about **300 seconds** for spends. Past that you get `503 WALLET_BRIDGE_TIMEOUT` for a read or `503 WALLET_BRIDGE_PENDING` for a spend.
+
+`WALLET_BRIDGE_PENDING` does not mean failure — the wallet may still complete the action. Reconcile with `listActions` by label, or by protocol state, before you retry anything that mutates. If your HTTP client disconnects, the wallet cancels the pending prompt.
+
+## Designing for the prompt
+
+The prompt is the user's whole view of your request, so:
+
+- Write a specific `description`; the wallet shows it verbatim.
+- Give every input and output a real `inputDescription` / `outputDescription`.
+- Expect the wallet window to take focus, and do not block your UI on a modal of your own.
+- Item and token previews come from wallet-held data. A preview you supply is not displayed, so it cannot be used to misrepresent an asset.
+
+## Reserved for HandCash hosts
+
+Market, migration, handle-claim, and operations methods check the calling host and refuse everyone else:
+
+| Group | Methods | Refusal |
+|-------|---------|---------|
+| Market | `createMarketListingAdvert`, `createMarketPurchaseIntent`, `verifyMarketListingProvenance`, `purchaseMarketListing`, `getMarketSettlementReceipt`, `createCancelMarketListingAdvert`, `getMarketListingStatus`, `markMarketListingPublishFailed`, `getTokenIcon` | `403 MARKET_ORIGIN_DENIED` |
+| Migration | `getLegacyAddress`, `refreshLegacyAddress`, `listMigrationTxids` | `403 MIGRATION_ORIGIN_DENIED` |
+| Handle claim | `claimCloudHandle`, `clearClaimedCloudHandle` | `403 MIGRATION_ORIGIN_DENIED` |
+| Operations | `createAdminIdentityProof` | `400` with a restriction message |
+
+Build on `createAction`, `signAction`, and `internalizeAction` instead. Those are portable to any BRC-100 wallet.
+
+## Next steps
+
+- [Payments and actions](/brc-wallet/payments)
+- [Collectables](/brc-wallet/items)
+- [Tokens](/brc-wallet/tokens)
+- [Local bridge](/brc-wallet/local-bridge)
