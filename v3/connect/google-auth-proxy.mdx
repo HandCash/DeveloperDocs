@@ -1,13 +1,7 @@
 ---
-title: Federated auth app proxy
-description: Use HandCash Google/Auth0 login to bootstrap Connect authorization without owning Google OAuth credentials (BRC-178 draft)
+title: Sign in with Google
+description: 'Offer Google sign-in through the HandCash auth proxy and bootstrap a Connect authorization without your own Google OAuth client'
 ---
-
-<Warning>
-**Beta / draft.** This is the deployed HandCash profile of
-[BRC-178](https://github.com/bsv-blockchain/BRCs/pull/251). The wire contract
-may change during review.
-</Warning>
 
 ## What it does
 
@@ -20,9 +14,10 @@ Your app never receives a Google authorization code, access token, refresh
 token, client ID, or client secret.
 
 <Info>
-This bootstraps a **HandCash Connect** authorization. It is not the BRC-100
-Desktop local bridge and does not grant your app access to the user's Google
-account.
+This is a convenience entry point into the standard
+[Connect authentication](/v3/connect/authentication) flow — it produces a
+HandCash Connect authorization and does not grant your app access to the
+user's Google account.
 </Info>
 
 ## Flow
@@ -173,5 +168,6 @@ HandCash Market implements the proxy at
 - Popup completion checks `event.origin`; popup closure alone is not proof of
   successful login.
 
-Read the normative draft:
-[BRC-178 — Federated Identity Bootstrap Proxy for Application Authorization](https://github.com/bsv-blockchain/BRCs/pull/251).
+Once the callback completes you hold an ordinary Connect authorization — see
+[Authentication](/v3/connect/authentication) for permissions and session
+handling.
