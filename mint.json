@@ -51,6 +51,8 @@
       "pages": [
         "brc-wallet/overview",
         "brc-wallet/getting-started",
+        "brc-wallet/interactions",
+        "brc-wallet/examples",
         "brc-wallet/local-bridge"
       ]
     },

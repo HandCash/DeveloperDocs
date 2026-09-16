@@ -1,0 +1,189 @@
+---
+title: Wallet interactions
+description: Complete app-facing capability map for the HandCash BRC wallet, including transactions, items, tokens, signing, encryption, certificates, and discovery
+---
+
+<Warning>
+**Beta — BRC wallet only.** This is the implemented app-facing surface of
+HandCash Desktop and Mobile. Standard method shapes follow
+[BRC-100](https://brc.dev/100); HandCash extensions are marked explicitly.
+This is not the HandCash Connect or Wallet API surface.
+</Warning>
+
+## At a glance
+
+An app can ask the wallet to:
+
+- connect and identify the active wallet;
+- read network state, balance, action history, and permitted outputs;
+- create, stage, sign, abort, broadcast, and internalize transactions;
+- pay BSV and mint, receive, transfer, list, or burn items and tokens;
+- derive app-scoped keys, encrypt data, create HMACs, and sign messages;
+- acquire, disclose, discover, and relinquish identity certificates;
+- install and query user-approved index expansion packs.
+
+Items and tokens are not separate signing APIs. They are protocol-shaped
+transactions created with `createAction`, received with `internalizeAction`,
+and discovered with permission-scoped `listOutputs`.
+
+## Permission levels
+
+| Level | Behaviour |
+| --- | --- |
+| **Public** | No app connection is required. |
+| **Connected** | The user has approved the requesting origin. |
+| **Approval** | The wallet shows the exact transaction, signature, disclosure, or destructive action. |
+| **Scoped view** | The user grants access to specified item, token, or index data. |
+| **Restricted** | Reserved for a HandCash-owned host; not a general app API. |
+
+Every request is bound to the browser origin or `originator` header. A grant
+for one origin never grants another origin access.
+
+<Note>
+“Public” means no app connection is required. Every `POST /{method}` still
+requires the wallet to be unlocked. Only `GET /health` and
+`GET /manifest.json` are answered without the wallet renderer.
+</Note>
+
+## Complete standard method map
+
+### Session and chain
+
+| Interaction | Method | Level | Notes |
+| --- | --- | --- | --- |
+| Read wallet implementation version | `getVersion` | Public | Preferred BRC-100 discovery probe. |
+| Read active BSV network | `getNetwork` | Public | Returns the wallet's current network. |
+| Read current chain height | `getHeight` | Public | Uses the wallet's chain tracker. |
+| Read a block header | `getHeaderForHeight` | Public | Pass `{ height }`. |
+| Check connection silently | `isAuthenticated` | Public | Returns `{ authenticated: false }` without prompting. |
+| Connect the app | `waitForAuthentication` | Connect prompt | Approves and remembers the requesting origin for this wallet account. |
+| Read the wallet identity or a derived public key | `getPublicKey` | Connected | BRC-42 identity key or BRC-43 protocol key. |
+
+### Transactions, payments, and history
+
+| Interaction | Method | Level | Notes |
+| --- | --- | --- | --- |
+| Create and optionally process a transaction | `createAction` | Approval | Pays BSV and creates protocol outputs, items, and tokens. Plain BSV may use a user-configured auto-pay grant. |
+| Finish a staged transaction | `signAction` | Approval | Signs app-supplied spends for a `reference` returned by `createAction`. |
+| Abort a staged transaction | `abortAction` | Connected | Releases the pending action identified by `reference`. |
+| List transaction history | `listActions` | Connected | Filter by labels; optionally include inputs, outputs, scripts, and labels. |
+| Receive an external transaction | `internalizeAction` | Approval or incoming-funds grant | Validates AtomicBEEF and inserts specified outputs into wallet baskets. |
+
+HandCash submits ordinary signed `createAction` transactions immediately. If
+you deliberately request `noSend`, your app owns the rest of that lifecycle
+and must not assume the transaction was broadcast.
+
+### Outputs, baskets, items, and tokens
+
+| Interaction | Method | Level | Notes |
+| --- | --- | --- | --- |
+| List outputs in a basket | `listOutputs` | Connected | Standard BRC-46 output query. |
+| Read collectables | `listOutputs` | Scoped view | Use a BRC-165 `p 1sat ...` basket; bare `1sat` is wallet-internal. |
+| Read BSV-21 tokens | `listOutputs` | Scoped view | Use `p bsv21 all` or `p bsv21 id`; bare `bsv21` is wallet-internal. |
+| Request transaction proof data | `listOutputs` | Connected/scoped | Use `include: "entire transactions"` for aggregated BEEF. |
+| Stop tracking an output | `relinquishOutput` | Approval | Destructive wallet bookkeeping; it does not spend the output on-chain. |
+
+Supported collectable scopes:
+
+| Basket | Required filter tags | Meaning |
+| --- | --- | --- |
+| `p 1sat all` | none | All collectables the user grants to this app. |
+| `p 1sat collection` | `collection:<id>` | One or more collections. |
+| `p 1sat app` | `app:<id>` | Items associated with an app. |
+| `p 1sat creator` | `creator:<identity-key>` | Items associated with a creator. |
+| `p 1sat id` | `id:<row-id>` | Exact BRC-164 item rows. |
+| `p bsv21 all` | none | All BSV-21 tokens the user grants. |
+| `p bsv21 id` | `id:<token-id>` or `bsv21:<token-id>` | Exact token identities. |
+
+HandCash advertises the `1sat` profile capabilities BRC-147, BRC-150,
+BRC-164, and BRC-165. BRC-150 provenance is basket metadata used to verify an
+item's tip-to-origin lineage; it is not an extra on-chain ownership output.
+
+### App-scoped cryptography
+
+| Interaction | Method | Level | Notes |
+| --- | --- | --- | --- |
+| Derive a public key | `getPublicKey` | Connected | Use `protocolID`, `keyID`, and `counterparty` for app-scoped keys. |
+| Encrypt bytes | `encrypt` | Approval | BRC-2 key derivation; returns ciphertext bytes. |
+| Decrypt bytes | `decrypt` | Approval | Must use the matching protocol, key, and counterparty context. |
+| Create an HMAC | `createHmac` | Connected | BRC-56 integrity/authentication without exposing key material. |
+| Verify an HMAC | `verifyHmac` | Connected | Returns whether the supplied HMAC is valid. |
+| Create a signature | `createSignature` | Approval | BRC-3 signature using a derived key. |
+| Verify a signature | `verifySignature` | Connected | Verifies with the corresponding derivation context. |
+
+Use a unique, stable `protocolID` and `keyID` for each purpose. Do not reuse a
+key namespace across encryption, authentication, and identity proof flows.
+The bridge manifest also advertises HandCash's canonical, origin-bound wallet
+identity proof recipe using `getPublicKey` and `createSignature`; an arbitrary
+signature is not automatically an identity proof.
+
+### Certificates and identity discovery
+
+| Interaction | Method | Level | Notes |
+| --- | --- | --- | --- |
+| Acquire a certificate | `acquireCertificate` | Approval | BRC-52 direct or issuance protocol acquisition. |
+| List held certificates | `listCertificates` | Connected | Filter by certifier and type. |
+| Selectively disclose certificate fields | `proveCertificate` | Approval | Reveals only the requested fields. |
+| Stop tracking a certificate | `relinquishCertificate` | Approval | Removes the certificate from wallet storage. |
+| Find certificates by identity key | `discoverByIdentityKey` | Connected | BRC-52 identity discovery. |
+| Find identities by certified attributes | `discoverByAttributes` | Connected | Search by disclosed/certified attributes. |
+| Reveal counterparty key linkage | `revealCounterpartyKeyLinkage` | Approval | BRC-69 advanced interoperability operation. |
+| Reveal one derived-key linkage | `revealSpecificKeyLinkage` | Approval | Restricted to the requested protocol/key context. |
+
+## HandCash app extensions
+
+These methods travel over the same bridge but are not part of the core
+BRC-100 method list.
+
+| Interaction | Method | Level |
+| --- | --- | --- |
+| Read spendable BSV in satoshis | `getBalance` | Connected |
+| Read the wallet's verified cloud-handle binding | `getClaimedCloudHandle` | Connected |
+| Install a BRC-230 index expansion pack | `installIndexExpansion` | Approval |
+| List installed index packs | `listIndexExpansions` | Connected |
+| Remove an index pack | `removeIndexExpansion` | Approval |
+| Synchronize an index pack | `syncIndexExpansion` | Approval |
+| Read cached index entries | `listIndexExpansionEntries` | Scoped view |
+| Query a live overlay through an installed pack | `overlayLookup` | Approval |
+
+`GET /manifest.json` and `GET /health` advertise the `1sat`, identity-proof,
+and index-expansion profiles. They do not enumerate every convenience method
+in this table. Feature-detect advertised profiles and handle an unsupported
+method response for the rest; never assume another BRC-100 wallet implements
+HandCash extensions.
+
+## Host-restricted HandCash methods
+
+The following methods exist for HandCash Market, migration, and account
+operations. Third-party apps receive `403` and must not build against them:
+
+- market lifecycle: `createMarketListingAdvert`,
+  `createMarketPurchaseIntent`, `verifyMarketListingProvenance`,
+  `purchaseMarketListing`, `getMarketSettlementReceipt`,
+  `createCancelMarketListingAdvert`, `getMarketListingStatus`,
+  `markMarketListingPublishFailed`, and `getTokenIcon`;
+- migration: `getLegacyAddress`, `refreshLegacyAddress`, and
+  `listMigrationTxids`;
+- account administration: `claimCloudHandle`, `clearClaimedCloudHandle`, and
+  `createAdminIdentityProof`.
+
+General apps create their own protocol transactions with standard
+`createAction` / `internalizeAction`; vendor-only helpers are not portable.
+
+## What is not automatic
+
+- The wallet funds and signs a valid action; your app still constructs the
+  protocol locking script for an item, token, contract, or application output.
+- A basket records wallet intent. It does not prove that an arbitrary script
+  follows the protocol named by the basket.
+- `relinquishOutput` removes local tracking; it is not a burn. Burn by creating
+  the protocol's valid burn/spend transaction.
+- `listOutputs` only returns data within the app's approved scope.
+- Messagebox delivery is optional communication, not payment custody.
+
+## Next
+
+- **[Examples](/brc-wallet/examples)** — connection, payment, minting, item and
+  token receipt, signing, encryption, and certificates
+- **[Local bridge](/brc-wallet/local-bridge)** — HTTP transport and errors
+- Protocol source of truth: [BRC-100](https://brc.dev/100)
