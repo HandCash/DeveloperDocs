@@ -51,8 +51,7 @@
       "pages": [
         "brc-wallet/overview",
         "brc-wallet/getting-started",
-        "brc-wallet/local-bridge",
-        "brc-wallet/oauth-storage"
+        "brc-wallet/local-bridge"
       ]
     },
     {
@@ -135,6 +134,10 @@
     {
       "source": "/beta-brcs/federated-auth-proxy",
       "destination": "/v3/connect/google-auth-proxy"
+    },
+    {
+      "source": "/brc-wallet/oauth-storage",
+      "destination": "/brc-wallet/overview"
     }
   ],
   "footerSocials": {
