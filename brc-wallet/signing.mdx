@@ -1,0 +1,148 @@
+---
+title: Signing and encryption
+description: 'Derive app-scoped keys, sign and verify data, encrypt records, and work with certificates'
+---
+
+<Warning>
+**Beta — BRC wallet only.** Desktop / Mobile over [BRC-100](https://brc.dev/100).
+</Warning>
+
+The wallet holds the keys. Your app names a **protocol** and a **key ID**, and the wallet derives a key for that context, uses it, and returns the result. No private key ever leaves the wallet.
+
+Every cryptographic call takes the same three fields:
+
+| Field | Meaning |
+|-------|---------|
+| `protocolID` | `[securityLevel, protocolName]` — level `2` scopes the key to your app and counterparty |
+| `keyID` | Your identifier for this key inside the protocol, such as `invoice:7842` |
+| `counterparty` | `'self'`, `'anyone'`, or a specific identity public key |
+
+Use `'anyone'` when third parties must verify the result, `'self'` for records only your app and user read, and a specific key for pairwise data.
+
+## Read the identity key
+
+```typescript
+const { publicKey: identityKey } = await wallet.getPublicKey({ identityKey: true });
+```
+
+This is the user's stable identity across apps. Use it as the account handle in your backend.
+
+## Derive an app-scoped key
+
+```typescript
+const protocolID: [number, string] = [2, 'robot foundry documents'];
+
+const { publicKey } = await wallet.getPublicKey({
+  protocolID,
+  keyID: 'invoice:7842',
+  counterparty: 'anyone'
+});
+```
+
+Publish this public key with your data so anyone can verify signatures later.
+
+## Sign and verify data
+
+```typescript
+const data = [...new TextEncoder().encode('Invoice 7842 approved')];
+
+const { signature } = await wallet.createSignature({
+  protocolID,
+  keyID: 'invoice:7842',
+  counterparty: 'anyone',
+  data
+});
+
+const { valid } = await wallet.verifySignature({
+  protocolID,
+  keyID: 'invoice:7842',
+  counterparty: 'anyone',
+  data,
+  signature
+});
+```
+
+Sign a hash instead of the payload when the data is large or private:
+
+```typescript
+const { signature } = await wallet.createSignature({
+  protocolID,
+  keyID: 'invoice:7842',
+  counterparty: 'anyone',
+  hashToDirectlySign: sha256Bytes
+});
+```
+
+Each signature is its own prompt. Batch what you can into one signed document rather than asking the user repeatedly.
+
+## Encrypt a record
+
+```typescript
+const context = {
+  protocolID: [2, 'robot foundry private records'] as [number, string],
+  keyID: 'record:7842',
+  counterparty: 'self' as const
+};
+
+const { ciphertext } = await wallet.encrypt({
+  ...context,
+  plaintext: [...new TextEncoder().encode('private payload')]
+});
+
+const { plaintext } = await wallet.decrypt({ ...context, ciphertext });
+```
+
+Store the ciphertext wherever you like — your server can hold data it cannot read.
+
+## Authenticate a record with HMAC
+
+```typescript
+const { hmac } = await wallet.createHmac({ ...context, data });
+
+const { valid } = await wallet.verifyHmac({ ...context, data, hmac });
+```
+
+Encryption gives confidentiality; HMAC gives integrity. Use the one you actually need, not both by reflex.
+
+## Certificates
+
+Acquisition depends on your certifier's [BRC-52](https://brc.dev/52) flow. Once the user holds a certificate, reading and disclosing it is portable:
+
+```typescript
+const held = await wallet.listCertificates({
+  certifiers: [certifierIdentityKey],
+  types: [certificateType],
+  limit: 20,
+  offset: 0
+});
+
+const proof = await wallet.proveCertificate({
+  certificate: held.certificates[0],
+  fieldsToReveal: ['name', 'country'],
+  verifier: verifierIdentityKey
+});
+```
+
+`proveCertificate` prompts with the exact fields being revealed, so request the fewest that your check requires.
+
+## Discover identities
+
+```typescript
+const byKey = await wallet.discoverByIdentityKey({
+  identityKey: counterpartyIdentityKey,
+  limit: 10
+});
+
+const byAttributes = await wallet.discoverByAttributes({
+  attributes: { country: 'CA' },
+  limit: 20
+});
+```
+
+Results are certificates other parties hold, not wallet contents. Treat them as claims that are only as good as their certifier.
+
+## Next steps
+
+- [Payments and actions](/brc-wallet/payments)
+- [Collectables](/brc-wallet/items)
+- [Wallet interactions](/brc-wallet/interactions)

@@ -1,0 +1,188 @@
+---
+title: Payments and actions
+description: 'Connect to the BRC wallet, read balance, send BSV, stage transactions, and receive payments'
+---
+
+<Warning>
+**Beta — BRC wallet only.** Desktop / Mobile over [BRC-100](https://brc.dev/100), not Connect or Wallet API.
+</Warning>
+
+## Setup
+
+```bash
+npm install @bsv/sdk
+```
+
+```typescript
+import { WalletClient } from '@bsv/sdk';
+
+// Finds the user's local wallet, including the HandCash Desktop bridge.
+const wallet = new WalletClient('auto');
+```
+
+Every call carries your origin so the wallet can show the user who is asking. See [Local bridge](/brc-wallet/local-bridge) to call the same methods over plain HTTP.
+
+## Connect
+
+```typescript
+const { authenticated } = await wallet.isAuthenticated();
+
+if (!authenticated) {
+  // Opens the connection prompt in HandCash.
+  await wallet.waitForAuthentication();
+}
+```
+
+`isAuthenticated` never prompts, so use it to decide whether to show a connect button.
+
+## Read balance
+
+`getBalance` is a HandCash convenience method:
+
+```typescript
+const response = await fetch('http://127.0.0.1:3321/getBalance', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', originator: location.host },
+  body: '{}'
+});
+
+const { satoshis } = await response.json();
+```
+
+For a portable version, total the funding outputs the wallet holds:
+
+```typescript
+const funding = await wallet.listOutputs({ basket: 'default', limit: 1000 });
+
+const satoshis = funding.outputs.reduce((total, output) => total + output.satoshis, 0);
+```
+
+## Send a payment
+
+Build the recipient locking script with your Bitcoin library, then let the wallet fund, sign, and broadcast:
+
+```typescript
+import { P2PKH, WalletClient } from '@bsv/sdk';
+
+const wallet = new WalletClient('auto');
+
+const { txid } = await wallet.createAction({
+  description: 'Coffee order 7842',
+  labels: ['coffee-order'],
+  outputs: [
+    {
+      lockingScript: new P2PKH().lock(recipientAddress).toHex(),
+      satoshis: 25_000,
+      outputDescription: 'Coffee order'
+    }
+  ]
+});
+```
+
+The user sees your `description`, the amount, and your app name. Keep descriptions specific — they are what the user is agreeing to.
+
+## Stage and sign an action
+
+Use two steps when your app supplies its own unlocking script, such as spending an application contract:
+
+```typescript
+const staged = await wallet.createAction({
+  description: 'Claim contract payout',
+  inputs: [
+    {
+      outpoint: contractOutpoint,
+      inputDescription: 'Game contract',
+      unlockingScriptLength: 108
+    }
+  ],
+  outputs: [
+    {
+      lockingScript: nextContractLockingScript,
+      satoshis: 5_000,
+      outputDescription: 'Next contract state'
+    }
+  ],
+  options: { signAndProcess: false }
+});
+
+const { reference } = staged.signableTransaction!;
+
+const { txid } = await wallet.signAction({
+  reference,
+  spends: {
+    0: { unlockingScript: contractUnlockingScript }
+  }
+});
+```
+
+Any input with `unlockingScriptLength` instead of `unlockingScript` produces a `signableTransaction` you must finish with `signAction`. The wallet never invents your contract's unlock.
+
+### Abort a staged action
+
+```typescript
+await wallet.abortAction({ reference });
+```
+
+Abort or sign — never abort and then build a second transaction spending the same input.
+
+## Receive a payment
+
+When another party hands your app a transaction in Atomic BEEF format:
+
+```typescript
+const { accepted } = await wallet.internalizeAction({
+  tx: atomicBeef,
+  description: 'Tournament prize',
+  labels: ['tournament-payout'],
+  outputs: [
+    {
+      outputIndex: 0,
+      protocol: 'wallet payment',
+      paymentRemittance: {
+        derivationPrefix,
+        derivationSuffix,
+        senderIdentityKey
+      }
+    }
+  ]
+});
+```
+
+The wallet validates the transaction before it accepts it. Do not mark a delivery complete until this call succeeds.
+
+## List history
+
+```typescript
+const history = await wallet.listActions({
+  labels: ['coffee-order'],
+  labelQueryMode: 'all',
+  includeLabels: true,
+  includeOutputs: true,
+  limit: 25,
+  offset: 0
+});
+
+console.log(`${history.totalActions} matching actions`);
+```
+
+Labels are how you find your own transactions later, so label every action your app creates.
+
+## Error handling
+
+```typescript
+try {
+  await wallet.createAction(action);
+} catch (error) {
+  // WALLET_LOCKED, NOT_AUTHENTICATED, PERMISSION_DENIED, ACTION_DENIED,
+  // INSUFFICIENT_FUNDS, OFFLINE_PAYMENTS_DISABLED
+  console.error(error);
+}
+```
+
+A timeout is not a failure — the wallet may finish an action after your request drops. Check `listActions` by label before retrying a payment. Codes are listed in [Local bridge](/brc-wallet/local-bridge).
+
+## Next steps
+
+- [Collectables](/brc-wallet/items)
+- [Tokens](/brc-wallet/tokens)
+- [Signing and encryption](/brc-wallet/signing)

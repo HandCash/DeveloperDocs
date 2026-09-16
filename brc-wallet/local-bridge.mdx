@@ -29,7 +29,7 @@ Use the primary HTTPS endpoint when available; fall back to `3321` if the primar
 Use `POST /getVersion` with `{}` as the body. This is the BRC-100 substrate
 probe used by wallet clients:
 
-```ts
+```typescript
 const response = await fetch('https://127.0.0.1:2121/getVersion', {
   method: 'POST',
   headers: {
@@ -104,7 +104,7 @@ transaction ID, or application protocol state first.
 
 - **[Getting started](/brc-wallet/getting-started)**
 - **[Wallet interactions](/brc-wallet/interactions)**
-- **[Examples](/brc-wallet/examples)**
+- **[Payments and actions](/brc-wallet/payments)**
 - **[Overview](/brc-wallet/overview)**
 - Protocol: [BRC-100](https://brc.dev/100)
 - Live board: [App Lab](https://brc-cloud.bcryderman.workers.dev/app-lab)
