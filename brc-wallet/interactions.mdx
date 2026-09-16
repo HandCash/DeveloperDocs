@@ -25,6 +25,14 @@ Apps talk to the wallet with standard BRC-100 methods. Payments, items, and toke
   <Card title="Signing and encryption" icon="key" href="/brc-wallet/signing">
     Identity key, derived keys, signatures, encryption, HMAC, certificates
   </Card>
+
+  <Card title="Permissions and scopes" icon="lock" href="/brc-wallet/permissions">
+    Origins, prompts, auto-pay, scoped baskets, error codes, deadlines
+  </Card>
+
+  <Card title="Local bridge" icon="plug" href="/brc-wallet/local-bridge">
+    Loopback ports, discovery, transport errors
+  </Card>
 </CardGroup>
 
 ## Overview
@@ -35,25 +43,25 @@ Apps talk to the wallet with standard BRC-100 methods. Payments, items, and toke
 | Connection | `isAuthenticated`, `waitForAuthentication` |
 | Keys | `getPublicKey` |
 | Transactions | `createAction`, `signAction`, `abortAction`, `internalizeAction`, `listActions` |
-| Outputs, items, tokens | `listOutputs`, `relinquishOutput` |
+| Items and tokens | `listOutputs`, `relinquishOutput` — see [Collectables](/brc-wallet/items) and [Tokens](/brc-wallet/tokens) |
 | Cryptography | `encrypt`, `decrypt`, `createHmac`, `verifyHmac`, `createSignature`, `verifySignature` |
 | Certificates | `acquireCertificate`, `listCertificates`, `proveCertificate`, `relinquishCertificate` |
 | Identity discovery | `discoverByIdentityKey`, `discoverByAttributes`, `revealCounterpartyKeyLinkage`, `revealSpecificKeyLinkage` |
 
 Payload shapes follow [BRC-100](https://brc.dev/100).
 
-## Permissions
+## Permissions at a glance
 
 | Level | What the user sees | Methods |
 |-------|--------------------|---------|
-| Public | Nothing | Discovery methods and `isAuthenticated` |
+| Public | Nothing | `getVersion`, `getNetwork`, `getHeight`, `getHeaderForHeight`, `isAuthenticated` |
 | Connect | One prompt per app origin | `waitForAuthentication` |
 | Approval | A prompt describing the exact transaction, signature, or disclosure | `createAction`, `signAction`, `internalizeAction`, `relinquishOutput`, `createSignature`, `encrypt`, `decrypt`, certificate and key-linkage methods |
-| Scoped view | A prompt naming the items, tokens, or catalog requested | `listOutputs` on item, token, and index baskets |
+| Scoped view | A prompt naming the items, tokens, or catalog requested | `listOutputs` on item, token, and index baskets, plus the index-expansion methods |
 
-Permissions are bound to your origin, and a grant for one origin never covers another. The wallet must be unlocked for every method except `GET /health` and `GET /manifest.json`.
+Grants are bound to your origin and stored per wallet account. Plain BSV payments can skip the prompt when the user enabled auto-pay; item and token mints, sends, and releases always prompt.
 
-Plain BSV payments may skip the prompt when the user has enabled auto-pay or granted a spending limit. Item mints, item sends, token mints, token sends, and `relinquishOutput` always prompt.
+Full model — origin identity, auto-pay and spending limits, scoped basket grammar, every error code, and request deadlines: **[Permissions and scopes](/brc-wallet/permissions)**.
 
 ## HandCash extensions
 
@@ -63,7 +71,7 @@ These travel over the same bridge but are not part of BRC-100, so feature-detect
 |--------|---------|
 | `getBalance` | Spendable BSV in satoshis |
 | `getClaimedCloudHandle` | The wallet's verified handle binding |
-| `installIndexExpansion`, `syncIndexExpansion`, `removeIndexExpansion` | Manage BRC-230 catalog packs |
+| `installIndexExpansion`, `syncIndexExpansion`, `removeIndexExpansion` | Manage catalog index packs |
 | `listIndexExpansions`, `listIndexExpansionEntries` | Read installed packs and cached entries |
 | `overlayLookup` | Query a live overlay through an installed pack |
 
@@ -79,4 +87,5 @@ Build on `createAction` and `internalizeAction` instead — they are portable ac
 - [Collectables](/brc-wallet/items)
 - [Tokens](/brc-wallet/tokens)
 - [Signing and encryption](/brc-wallet/signing)
-- [Local bridge](/brc-wallet/local-bridge) — transport, discovery, and error codes
+- [Permissions and scopes](/brc-wallet/permissions) — prompts, grants, and error codes
+- [Local bridge](/brc-wallet/local-bridge) — transport and discovery
