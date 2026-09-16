@@ -43,15 +43,13 @@ You can also open [App Lab](https://brc-cloud.bcryderman.workers.dev/app-lab) wi
 
 ## Choose an interaction
 
-- Pay BSV, stage or sign transactions: `createAction`, `signAction`
-- Receive transactions: `internalizeAction`
-- Read item or token inventory: permission-scoped `listOutputs`
-- Mint or transfer items and tokens: protocol-shaped `createAction`
-- Sign, encrypt, authenticate, or derive keys: BRC-100 cryptography methods
-- Work with certificates and identity discovery: BRC-52 methods
-
-See **[Wallet interactions](/brc-wallet/interactions)** for the complete method
-map and **[Examples](/brc-wallet/examples)** for request patterns.
+| You want to… | Page |
+|--------------|------|
+| Connect, read balance, send BSV, stage or sign, receive, list history | [Payments and actions](/brc-wallet/payments) |
+| Read inventory, mint, transfer, or receive 1Sat items | [Collectables](/brc-wallet/items) |
+| Read balances, mint, transfer, or receive BSV-21 tokens | [Tokens](/brc-wallet/tokens) |
+| Derive keys, sign, encrypt, or handle certificates | [Signing and encryption](/brc-wallet/signing) |
+| See every method and its permission level | [Wallet interactions](/brc-wallet/interactions) |
 
 <Note>
 Mobile uses the same wallet core, but the loopback HTTP URLs on this page are a
@@ -60,7 +58,7 @@ Desktop transport. Mobile app/deep-link transport is not yet a public contract.
 
 ## Next
 
+- **[Payments and actions](/brc-wallet/payments)** — the first calls most apps make
 - **[Wallet interactions](/brc-wallet/interactions)** — complete capability and permission map
-- **[Examples](/brc-wallet/examples)** — copyable integration patterns
 - **[Local bridge](/brc-wallet/local-bridge)** — ports, origins, and connecting from a web app
 - **[Overview](/brc-wallet/overview)** — how this section relates to Connect and WaaS

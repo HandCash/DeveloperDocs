@@ -52,7 +52,10 @@
         "brc-wallet/overview",
         "brc-wallet/getting-started",
         "brc-wallet/interactions",
-        "brc-wallet/examples",
+        "brc-wallet/payments",
+        "brc-wallet/items",
+        "brc-wallet/tokens",
+        "brc-wallet/signing",
         "brc-wallet/local-bridge"
       ]
     },
@@ -140,6 +143,10 @@
     {
       "source": "/brc-wallet/oauth-storage",
       "destination": "/brc-wallet/overview"
+    },
+    {
+      "source": "/brc-wallet/examples",
+      "destination": "/brc-wallet/payments"
     }
   ],
   "footerSocials": {

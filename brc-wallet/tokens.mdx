@@ -1,0 +1,150 @@
+---
+title: Tokens
+description: 'Read, mint, transfer, and receive BSV-21 tokens with the BRC wallet'
+---
+
+<Warning>
+**Beta — BRC wallet only.** Desktop / Mobile over [BRC-100](https://brc.dev/100).
+</Warning>
+
+Fungible tokens are BSV-21 outputs in their own basket. Token view is never implied by item view — the user grants it separately.
+
+## Read balances
+
+Baskets follow `p bsv21 <scope>` where the scope is `all` or `id`.
+
+### All tokens
+
+```typescript
+const tokens = await wallet.listOutputs({
+  basket: 'p bsv21 all',
+  includeTags: true,
+  includeCustomInstructions: true,
+  limit: 50,
+  offset: 0
+});
+```
+
+### One token
+
+```typescript
+const robot = await wallet.listOutputs({
+  basket: 'p bsv21 id',
+  tags: [`bsv21:${tokenId}`],
+  tagQueryMode: 'all',
+  includeTags: true,
+  includeCustomInstructions: true,
+  limit: 20
+});
+```
+
+The token id is the deploy outpoint. Amounts are integer base units encoded as strings, so apply `dec` yourself before you display a figure.
+
+<Note>
+Bare basket `bsv21` is wallet-internal and returns `USE_PBSV21_SCOPE`. Scope `id` requires an `id:` or `bsv21:` tag.
+</Note>
+
+## Mint a token
+
+Build the BSV-21 script in your protocol library, then mirror the operation in tags and `customInstructions` so the wallet can index and attest it:
+
+```typescript
+const { txid } = await wallet.createAction({
+  description: 'Deploy and mint ROBOT',
+  labels: ['bsv21', 'handcash-mint-token'],
+  outputs: [
+    {
+      lockingScript: bsv21DeployMintScript,
+      satoshis: 1,
+      outputDescription: 'ROBOT deploy and mint',
+      basket: 'bsv21',
+      tags: ['bsv21', 'op:deploy+mint', 'sym:ROBOT', 'amt:1000000', 'dec:2'],
+      customInstructions: JSON.stringify({
+        p: 'bsv-20',
+        op: 'deploy+mint',
+        sym: 'ROBOT',
+        amt: '1000000',
+        dec: '2'
+      })
+    }
+  ]
+});
+```
+
+HandCash recognizes the mirrored metadata as an identity-backed mint and adds the issuer attestation when the user approves. It does not build the script from your tags. Prefer the current BRC-162 encoding for new tokens; legacy JSON and `1sat-ft` support exist for compatibility only.
+
+## Transfer tokens
+
+A transfer spends the exact token tips and recreates the same total in base units:
+
+```typescript
+const { txid } = await wallet.createAction({
+  description: 'Send 25 ROBOT',
+  labels: ['bsv21', 'send-token'],
+  inputBEEF: tokenInputBeef,
+  inputs: selectedTips.map((tip) => ({
+    outpoint: tip.outpoint,
+    inputDescription: 'ROBOT tip',
+    unlockingScript: tip.unlockingScript
+  })),
+  outputs: [
+    {
+      lockingScript: recipientTransferScript,
+      satoshis: 1,
+      outputDescription: 'ROBOT transfer'
+    },
+    {
+      lockingScript: changeTransferScript,
+      satoshis: 1,
+      outputDescription: 'ROBOT change',
+      basket: 'bsv21',
+      tags: ['bsv21', `bsv21:${tokenId}`, 'amt:7500', 'sym:ROBOT', 'dec:2']
+    }
+  ]
+});
+```
+
+Base units in must equal base units out. Never round, and never drop a change output to make the arithmetic simpler.
+
+## Receive tokens
+
+```typescript
+const { accepted } = await wallet.internalizeAction({
+  tx: atomicBeef,
+  description: 'Receive 25 ROBOT',
+  labels: ['bsv21', 'receive-token'],
+  outputs: [
+    {
+      outputIndex: 2,
+      protocol: 'basket insertion',
+      insertionRemittance: {
+        basket: 'bsv21',
+        tags: ['bsv21', `bsv21:${tokenId}`, 'amt:2500', 'sym:ROBOT', 'dec:2'],
+        customInstructions: JSON.stringify({
+          p: 'bsv-20',
+          op: 'transfer',
+          id: tokenId,
+          amt: '2500',
+          sym: 'ROBOT',
+          dec: 2
+        })
+      }
+    }
+  ]
+});
+```
+
+## Stop tracking a token output
+
+```typescript
+await wallet.relinquishOutput({
+  basket: 'p bsv21 id',
+  output: tokenOutpoint
+});
+```
+
+## Next steps
+
+- [Collectables](/brc-wallet/items)
+- [Signing and encryption](/brc-wallet/signing)
+- [Wallet interactions](/brc-wallet/interactions)

@@ -1,0 +1,168 @@
+---
+title: Collectables
+description: 'Read, mint, transfer, and receive 1Sat items with the BRC wallet'
+---
+
+<Warning>
+**Beta — BRC wallet only.** Desktop / Mobile over [BRC-100](https://brc.dev/100), not Connect Items.
+</Warning>
+
+Items are one-satoshi ordinal outputs the wallet holds in a basket. Your app builds the inscription script; the wallet funds it, signs it, files it, and shows the user what they are approving.
+
+Prerequisites: an [authenticated wallet](/brc-wallet/payments#connect) and an item view or mint permission the user has granted your origin.
+
+## Read inventory
+
+Ask for the narrowest scope your screen needs. Baskets follow `p 1sat <scope>` where the scope is one of `all`, `collection`, `app`, `creator`, or `id`, and the filter values live in tags.
+
+### All items
+
+```typescript
+const inventory = await wallet.listOutputs({
+  basket: 'p 1sat all',
+  includeTags: true,
+  includeCustomInstructions: true,
+  limit: 50,
+  offset: 0
+});
+
+console.log(`${inventory.totalOutputs} items held`);
+```
+
+### One collection
+
+```typescript
+const robots = await wallet.listOutputs({
+  basket: 'p 1sat collection',
+  tags: ['collection:robots'],
+  tagQueryMode: 'all',
+  includeTags: true,
+  includeCustomInstructions: true,
+  limit: 50
+});
+```
+
+### One exact item
+
+```typescript
+const item = await wallet.listOutputs({
+  basket: 'p 1sat id',
+  tags: [`id:${rowId}`],
+  tagQueryMode: 'all',
+  includeTags: true,
+  includeCustomInstructions: true,
+  include: 'entire transactions',
+  limit: 1
+});
+```
+
+<Note>
+Bare basket `1sat` is wallet-internal and returns `USE_P1SAT_SCOPE`. A scope other than `all` needs a matching tag, or the wallet returns `MISSING_P1SAT_SCOPE_TAG`.
+</Note>
+
+## Mint an item
+
+```typescript
+const { txid } = await wallet.createAction({
+  description: 'Mint Robot #42',
+  labels: ['1sat', 'item', 'app:robot-foundry'],
+  outputs: [
+    {
+      lockingScript: ordinalInscriptionScript,
+      satoshis: 1,
+      outputDescription: 'Robot #42 collectable',
+      basket: 'p 1sat app',
+      tags: ['ordinal', 'app:robot-foundry', 'collection:robots', 'name:Robot #42'],
+      customInstructions: JSON.stringify({
+        name: 'Robot #42',
+        app: 'robot-foundry',
+        collection: 'robots',
+        mediaType: 'image/png'
+      })
+    }
+  ]
+});
+```
+
+The basket and tags index the item; they do not create the inscription. Validate the script against the 1Sat protocol before you send it. The wallet stamps its own row ID so later reads can address this exact item.
+
+## Transfer an item
+
+A transfer spends the held one-satoshi tip and creates the next one. Name the held row with a `p 1sat input id <rowId>` label so the wallet can resolve the item you mean:
+
+```typescript
+const { txid } = await wallet.createAction({
+  description: 'Send Robot #42',
+  labels: ['1sat', 'send-collectable', `p 1sat input id ${rowId}`],
+  inputBEEF: itemInputBeef,
+  inputs: [
+    {
+      outpoint: heldItemOutpoint,
+      inputDescription: 'Robot #42 1Sat tip',
+      unlockingScript: itemUnlockingScript
+    }
+  ],
+  outputs: [
+    {
+      lockingScript: recipientItemScript,
+      satoshis: 1,
+      outputDescription: 'Robot #42 transfer'
+    }
+  ]
+});
+```
+
+The label must resolve to exactly one held row, and that outpoint must appear in the action. If your app supplies `unlockingScriptLength` instead of a script, finish the returned reference with [`signAction`](/brc-wallet/payments#stage-and-sign-an-action) — the wallet never exposes a root private key or invents your unlock.
+
+A burn is the same call with a protocol-valid terminal output. Never fall back to a plain payment when an item path fails.
+
+## Receive an item
+
+```typescript
+const { accepted } = await wallet.internalizeAction({
+  tx: atomicBeef,
+  description: 'Receive Robot #42',
+  labels: ['1sat', 'receive-collectable'],
+  outputs: [
+    {
+      outputIndex: 0,
+      protocol: 'basket insertion',
+      insertionRemittance: {
+        basket: 'p 1sat app',
+        tags: [
+          'ordinal',
+          'app:robot-foundry',
+          'collection:robots',
+          `origin:${originOutpoint}`,
+          'name:Robot #42'
+        ],
+        customInstructions: JSON.stringify({
+          origin: originOutpoint,
+          name: 'Robot #42',
+          app: 'robot-foundry',
+          provenance: brc150Provenance
+        })
+      }
+    }
+  ]
+});
+```
+
+Include the BRC-150 provenance when the sender supplied it — that is what lets HandCash show the item as verified instead of unproven. Do not tell the sender the delivery succeeded until this call resolves.
+
+## Stop tracking an item
+
+```typescript
+await wallet.relinquishOutput({
+  basket: 'p 1sat id',
+  output: heldItemOutpoint
+});
+```
+
+This removes the wallet's record of the output. It is not a burn and it does not move coins.
+
+## Next steps
+
+- [Tokens](/brc-wallet/tokens)
+- [Signing and encryption](/brc-wallet/signing)
+- [Wallet interactions](/brc-wallet/interactions)
