@@ -24,23 +24,87 @@ Use the primary HTTPS endpoint when available; fall back to `3321` if the primar
 - Your app must present a clear **origin** the wallet can approve or deny.
 - Method payloads should match [BRC-100](https://brc.dev/100). HandCash-specific migrate / claim helpers may be origin-gated to HandCash hosts.
 
-## Migrate-shaped flows
+## Discovery
 
-HandCash’s public migrate and claim UX (e.g. `handcash.io/migrate`, handle claim) talk to this same Desktop bridge. Partner apps that mirror those contracts should keep Desktop and the web client in sync when methods or payloads change.
+Use `POST /getVersion` with `{}` as the body. This is the BRC-100 substrate
+probe used by wallet clients:
 
-For protocol context on peer payments and messagebox (convenience, not custody), see the BRC wallet overview and [brc.dev](https://brc.dev).
+```ts
+const response = await fetch('https://127.0.0.1:2121/getVersion', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    originator: location.host,
+  },
+  body: '{}',
+})
+```
+
+Also available:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Lightweight listener health and advertised HandCash capabilities. |
+| `GET /manifest.json` | Wallet identity, trust metadata, `1sat`, identity-proof, and index-extension capabilities. |
+| `POST /{method}` | One JSON BRC-100 method call. |
+
+`GET /health` does not prove that the renderer is unlocked and ready to answer
+wallet calls. Use `getVersion` for wallet discovery.
+
+## Responses and errors
+
+Successful methods return their BRC-100 JSON result with HTTP `200`. Errors
+are JSON:
+
+```json
+{
+  "status": "error",
+  "code": "WALLET_LOCKED",
+  "description": "Unlock HandCash to use the BRC-100 interface."
+}
+```
+
+Common bridge errors:
+
+| HTTP | Code | Meaning |
+| --- | --- | --- |
+| `401` | `NOT_AUTHENTICATED` | Connect this origin with `waitForAuthentication`. |
+| `403` | `PERMISSION_DENIED` / `ACTION_DENIED` | The user denied connection or the specific action. |
+| `400` | `INSUFFICIENT_FUNDS` | Spendable local wallet state cannot fund the action. |
+| `400` | `USE_P1SAT_SCOPE` / `USE_PBSV21_SCOPE` | Use a permission basket, not an internal inventory basket. |
+| `503` | `WALLET_LOCKED` | Desktop is running but the wallet is locked. |
+| `503` | `OFFLINE_PAYMENTS_DISABLED` | A mutating payment was refused while offline. |
+
+Do not retry a mutating request blindly after a transport timeout: the wallet
+may have completed it after the caller disconnected. Reconcile by label,
+transaction ID, or application protocol state first.
+
+## Origin and permission rules
+
+- Public chain/discovery calls do not connect an app.
+- `isAuthenticated` is silent.
+- `waitForAuthentication` opens the origin connection prompt.
+- Transaction, signature, disclosure, and destructive methods may open a
+  second action-specific prompt.
+- Item, token, and index reads have separate scopes; a general connection does
+  not expose all wallet inventory.
+- Market, migration, handle-claim, and administrative helpers are restricted
+  to HandCash-owned hosts.
 
 ## Checklist for a first integration
 
 1. User installs and unlocks **HandCash Desktop**.
-2. Your app probes `2121`, then `3321`.
-3. User grants your origin the permissions you request.
-4. You call standard BRC-100 methods against the bridge.
-5. You never treat cloud Connect `authToken` or WaaS access keys as substitutes for this path.
+2. Your app probes `getVersion` on `2121`, then `3321`.
+3. It calls `isAuthenticated`, then `waitForAuthentication` if needed.
+4. The user grants your origin and any action-specific permissions.
+5. Your app calls standard BRC-100 methods and handles structured errors.
+6. It never treats cloud Connect `authToken` or WaaS access keys as substitutes for this path.
 
 ## Related
 
 - **[Getting started](/brc-wallet/getting-started)**
+- **[Wallet interactions](/brc-wallet/interactions)**
+- **[Examples](/brc-wallet/examples)**
 - **[Overview](/brc-wallet/overview)**
 - Protocol: [BRC-100](https://brc.dev/100)
 - Live board: [App Lab](https://brc-cloud.bcryderman.workers.dev/app-lab)
