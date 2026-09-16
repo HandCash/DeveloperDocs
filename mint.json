@@ -56,12 +56,6 @@
       ]
     },
     {
-      "group": "Beta BRCs (Draft)",
-      "pages": [
-        "beta-brcs/federated-auth-proxy"
-      ]
-    },
-    {
       "group": "v3 / Getting Started",
       "pages": [
         "v3/getting-started"
@@ -71,6 +65,7 @@
       "group": "v3 / Connect",
       "pages": [
         "v3/connect/authentication",
+        "v3/connect/google-auth-proxy",
         "v3/connect/user-creation",
         "v3/connect/profiles"
       ]
@@ -134,6 +129,12 @@
         "wallet-api/custom-verification-email",
         "wallet-api/on-ramps"
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/beta-brcs/federated-auth-proxy",
+      "destination": "/v3/connect/google-auth-proxy"
     }
   ],
   "footerSocials": {
