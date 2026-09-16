@@ -245,7 +245,6 @@ This drops the wallet's record of the output. It is not a burn, it moves no coin
 | Attempt | Result |
 |---------|--------|
 | `listOutputs({ basket: '1sat' })` | `400 USE_P1SAT_SCOPE` |
-| `listOutputs({ basket: '1sat-ft' })` | Empty list, HTTP `200` |
 | A persistent "all items" grant | Converted to a filtered collection and app ceiling |
 | Auto-pay covering an item mint, send, or release | Always prompts |
 | Wallet-side burn or abandon | HandCash UI only |

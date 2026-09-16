@@ -123,7 +123,7 @@ Where each form belongs:
 - Third-party apps never hold a persistent "all" grant. Asking for `p 1sat all` turns into a filtered grant over the collections and apps the user approved, so plan for a subset and paginate.
 - `p 1sat id` with a specific row id is a narrow lookup and resolves without a prompt.
 - Item view and token view are separate grants. Holding one and calling the other prompts again.
-- Rows with no identifying metadata, and legacy `1sat-ft` rows, are never returned to third-party apps.
+- Rows with no identifying metadata are never returned to third-party apps.
 
 ### Catalog packs
 
