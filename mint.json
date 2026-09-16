@@ -57,6 +57,13 @@
       ]
     },
     {
+      "group": "Beta BRCs",
+      "tag": "Draft",
+      "pages": [
+        "beta-brcs/federated-auth-proxy"
+      ]
+    },
+    {
       "group": "v3 / Getting Started",
       "pages": [
         "v3/getting-started"
