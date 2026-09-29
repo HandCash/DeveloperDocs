@@ -45,7 +45,7 @@ Also available:
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /health` | Lightweight listener health and advertised HandCash capabilities. |
-| `GET /manifest.json` | Wallet identity, trust metadata, `1sat`, identity-proof, and index-extension capabilities. |
+| `GET /manifest.json` | Wallet identity, trust metadata, and the `oneSat` capability block: implemented 1Sat BRCs, view scopes, spend label, provenance versions, identity-proof rules. The block is documented on the [feature map](/brc-wallet/feature-map#the-1sat-stack). |
 | `POST /{method}` | One JSON BRC-100 method call. |
 
 `GET /health` does not prove that the renderer is unlocked and ready to answer
