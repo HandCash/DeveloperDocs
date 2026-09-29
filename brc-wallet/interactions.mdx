@@ -45,8 +45,8 @@ Apps talk to the wallet with standard BRC-100 methods. Payments, items, and toke
 | Transactions | `createAction`, `signAction`, `abortAction`, `internalizeAction`, `listActions` |
 | Items and tokens | `listOutputs`, `relinquishOutput` — see [Collectables](/brc-wallet/items) and [Tokens](/brc-wallet/tokens) |
 | Cryptography | `encrypt`, `decrypt`, `createHmac`, `verifyHmac`, `createSignature`, `verifySignature` |
-| Certificates | `acquireCertificate`, `listCertificates`, `proveCertificate`, `relinquishCertificate` |
-| Identity discovery | `discoverByIdentityKey`, `discoverByAttributes`, `revealCounterpartyKeyLinkage`, `revealSpecificKeyLinkage` |
+| Certificates | `acquireCertificate`, `listCertificates`, `proveCertificate`, `relinquishCertificate` — forwarded, not the integrator path this release |
+| Identity discovery | `discoverByIdentityKey`, `discoverByAttributes`, `revealCounterpartyKeyLinkage`, `revealSpecificKeyLinkage` — forwarded, not the integrator path this release |
 
 Payload shapes follow [BRC-100](https://brc.dev/100).
 
@@ -57,7 +57,7 @@ Payload shapes follow [BRC-100](https://brc.dev/100).
 | Public | Nothing | `getVersion`, `getNetwork`, `getHeight`, `getHeaderForHeight`, `isAuthenticated` |
 | Connect | One prompt per app origin | `waitForAuthentication` |
 | Approval | A prompt describing the exact transaction, signature, or disclosure | `createAction`, `signAction`, `internalizeAction`, `relinquishOutput`, `createSignature`, `encrypt`, `decrypt`, certificate and key-linkage methods |
-| Scoped view | A prompt naming the items, tokens, or catalog requested | `listOutputs` on item, token, and index baskets, plus the index-expansion methods |
+| Scoped view | A prompt naming the items or tokens requested | `listOutputs` on item and token baskets. Index baskets return `404` on this release. |
 
 Grants are bound to your origin and stored per wallet account. Plain BSV payments can skip the prompt when the user enabled auto-pay; item and token mints, sends, and releases always prompt.
 
@@ -69,11 +69,10 @@ These travel over the same bridge but are not part of BRC-100, so feature-detect
 
 | Method | Purpose |
 |--------|---------|
-| `getBalance` | Spendable BSV in satoshis |
-| `getClaimedCloudHandle` | The wallet's verified handle binding |
-| `installIndexExpansion`, `syncIndexExpansion`, `removeIndexExpansion` | Manage catalog index packs |
-| `listIndexExpansions`, `listIndexExpansionEntries` | Read installed packs and cached entries |
-| `overlayLookup` | Query a live overlay through an installed pack |
+| `getBalance` | Spendable BSV in satoshis. Fall back to summing basket `default` on `404`. |
+| `getClaimedCloudHandle` | The wallet's verified handle binding. Fall back to the identity key on `404`. |
+
+Index and overlay packs (`installIndexExpansion`, `syncIndexExpansion`, `removeIndexExpansion`, `listIndexExpansions`, `listIndexExpansionEntries`, `overlayLookup`) return `404 INDEX_EXPANSION_UNAVAILABLE` on this release.
 
 ## Reserved for HandCash hosts
 
@@ -83,6 +82,7 @@ Build on `createAction` and `internalizeAction` instead — they are portable ac
 
 ## Next steps
 
+- [Feature map](/brc-wallet/feature-map) · [feature-map.md](https://docs.handcash.io/brc-wallet/feature-map.md)
 - [Payments and actions](/brc-wallet/payments)
 - [Collectables](/brc-wallet/items)
 - [Tokens](/brc-wallet/tokens)

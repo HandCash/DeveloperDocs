@@ -106,6 +106,10 @@ Encryption gives confidentiality; HMAC gives integrity. Use the one you actually
 
 ## Certificates
 
+<Note>
+Forwarded on this release, and not part of the [integrator path](/brc-wallet/feature-map). No HandCash test shows a third-party certificate call succeeding. Leave this off an integration until that changes.
+</Note>
+
 Acquisition depends on your certifier's [BRC-52](https://brc.dev/52) flow. Once the user holds a certificate, reading and disclosing it is portable:
 
 ```typescript
@@ -126,6 +130,10 @@ const proof = await wallet.proveCertificate({
 `proveCertificate` prompts with the exact fields being revealed, so request the fewest that your check requires.
 
 ## Discover identities
+
+<Note>
+Forwarded on this release, and not part of the [integrator path](/brc-wallet/feature-map). The same applies to `revealCounterpartyKeyLinkage` and `revealSpecificKeyLinkage`.
+</Note>
 
 ```typescript
 const byKey = await wallet.discoverByIdentityKey({

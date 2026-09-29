@@ -51,6 +51,7 @@
       "pages": [
         "brc-wallet/overview",
         "brc-wallet/getting-started",
+        "brc-wallet/feature-map",
         "brc-wallet/interactions",
         "brc-wallet/payments",
         "brc-wallet/items",
