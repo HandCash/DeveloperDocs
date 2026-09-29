@@ -1,0 +1,28 @@
+---
+title: Examples
+description: Download Transaction Bounce and the HandCash app template
+---
+
+<Warning>
+**Beta — BRC wallet only.** These examples talk to HandCash Desktop or Mobile over [BRC-100](https://brc.dev/100). They are not Connect or Wallet API samples.
+</Warning>
+
+Copyable request shapes live on the task pages: [payments](/brc-wallet/payments), [collectables](/brc-wallet/items), [tokens](/brc-wallet/tokens), and [signing](/brc-wallet/signing). The two projects below are the downloadable apps.
+
+## Transaction Bounce
+
+Sends 1,000 satoshis to the app and spends that exact output back to you, minus the network fee. The page calls the local wallet bridge. The refund API lives in the Worker.
+
+Live app: [brc-cloud.bcryderman.workers.dev/tx-bounce](https://brc-cloud.bcryderman.workers.dev/tx-bounce)
+
+<a href="/downloads/tx-bounce.zip" download>Download tx-bounce.zip</a>
+
+The archive is the page, the refund API, and its tests. `TX_BOUNCE_PRIVATE_KEY` is a Worker secret and is not included.
+
+## App template
+
+A Next.js starter for a HandCash app: Connect, the SDK, and optional machine payments.
+
+<a href="/downloads/app-template.zip" download>Download app-template.zip</a>
+
+`node_modules` is not in the zip. `@handcash/mpp` is declared as a path into a sibling `handcash-mpp` checkout. Point that dependency at your own checkout, or remove it, before `npm install`.
