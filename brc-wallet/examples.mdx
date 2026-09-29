@@ -1,6 +1,6 @@
 ---
 title: Examples
-description: Download Transaction Bounce and the HandCash app template
+description: Download Transaction Bounce and the wallet demo
 ---
 
 <Warning>
@@ -19,10 +19,12 @@ Live app: [brc-cloud.bcryderman.workers.dev/tx-bounce](https://brc-cloud.bcryder
 
 The archive is the page, the refund API, and its tests. `TX_BOUNCE_PRIVATE_KEY` is a Worker secret and is not included.
 
-## App template
+## Wallet demo
 
-A Next.js starter for a HandCash app: Connect, the SDK, and optional machine payments.
+Connects to HandCash on this device and runs one application lifecycle: identity, encryption, a 1,000-satoshi bounce, two JPEG inscriptions, and a BSV-21 mint. Wallet calls stay on the local bridge.
 
-<a href="/downloads/app-template.zip" download>Download app-template.zip</a>
+Live app: [brc-cloud.bcryderman.workers.dev/wallet-demo](https://brc-cloud.bcryderman.workers.dev/wallet-demo)
 
-`node_modules` is not in the zip. `@handcash/mpp` is declared as a path into a sibling `handcash-mpp` checkout. Point that dependency at your own checkout, or remove it, before `npm install`.
+<a href="/downloads/wallet-demo.zip" download>Download wallet-demo.zip</a>
+
+The archive is the page, the P2PKH helper, the tests, and the two JPEG bodies. The bounce step uses the Transaction Bounce API; that service key is not included.
