@@ -26,6 +26,14 @@ Configure callback URLs in [dashboard.handcash.io](https://dashboard.handcash.io
 **Important:** Use HTTPS in production. For local development, `http://localhost` is allowed.
 </Note>
 
+<Warning>
+**`@handcash/sdk` runs in Node.js, not the browser.** It imports `node:crypto` at module
+scope (to sign requests with the user's key), so browser bundlers will fail on it or force
+you to polyfill `crypto`. Keep `getInstance` / `getAccountClient` / `Connect.*` on your
+server, and do the `window.location.href` redirect from the client. If you need the
+authorization URL on the client, build it on your backend and pass it through.
+</Warning>
+
 ## Key Generation
 
 ### Required Dependency
@@ -75,10 +83,24 @@ await db.users.update(userId, { handcashPrivateKey: privateKey })
 
 ### Step 3: Redirect to HandCash
 
+Build the authorization URL with the SDK rather than hardcoding it. The host and path are
+owned by Handcash and can change — `getRedirectionUrl()` is the only thing that stays correct:
+
 ```typescript
-const authUrl = `https://handcash.io/connect?appId=YOUR_APP_ID&publicKey=${publicKey}`
+// Server-side: the SDK cannot be bundled for the browser (see the note above).
+const sdk = getInstance({ appId: 'YOUR_APP_ID', appSecret: 'YOUR_APP_SECRET' })
+
+const authUrl = sdk.getRedirectionUrl({ publicKey })
+
+// Client-side: perform the actual redirect.
 window.location.href = authUrl
 ```
+
+<Note>
+`getRedirectionUrl()` currently produces
+`https://app.handcash.io/#/authorizeApp?appId=<APP_ID>&publicKey=<PUBLIC_KEY>`.
+HandCash redirects to your **Authorization Success URL** when the user grants access.
+</Note>
 
 The user will log in and authorize your app on HandCash.
 
@@ -140,7 +162,7 @@ try {
   if (error.message.includes('Invalid token')) {
     // Invalid private key, redirect to re-authenticate
     const { publicKey } = generateAuthenticationKeyPair()
-    window.location.href = `https://handcash.io/connect?appId=${appId}&publicKey=${publicKey}`
+    window.location.href = sdk.getRedirectionUrl({ publicKey })
   }
 }
 ```
@@ -173,7 +195,7 @@ sessionStorage.setItem('handcash_state', state)
 Include the state in the redirect URL:
 
 ```typescript
-const authUrl = `https://handcash.io/connect?appId=YOUR_APP_ID&publicKey=${publicKey}&state=${state}`
+const authUrl = sdk.getRedirectionUrl({ publicKey, state })
 window.location.href = authUrl
 ```
 
