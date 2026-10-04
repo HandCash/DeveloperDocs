@@ -87,7 +87,7 @@ Build the authorization URL with the SDK rather than hardcoding it. The host and
 owned by Handcash and can change — `getRedirectionUrl()` is the only thing that stays correct:
 
 ```typescript
-// Server-side: the SDK cannot be bundled for the browser (see the note above).
+// Server-side: the SDK cannot be bundled for the browser (see the warning above).
 const sdk = getInstance({ appId: 'YOUR_APP_ID', appSecret: 'YOUR_APP_SECRET' })
 
 const authUrl = sdk.getRedirectionUrl({ publicKey })
@@ -98,7 +98,8 @@ window.location.href = authUrl
 
 <Note>
 `getRedirectionUrl()` currently produces
-`https://app.handcash.io/#/authorizeApp?appId=<APP_ID>&publicKey=<PUBLIC_KEY>`.
+`https://app.handcash.io/#/authorizeApp?publicKey=<PUBLIC_KEY>&appId=<APP_ID>` (your
+parameters in the order you pass them, then `appId`).
 HandCash redirects to your **Authorization Success URL** when the user grants access.
 </Note>
 
