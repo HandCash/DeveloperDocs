@@ -16,6 +16,12 @@ Install the [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview th
 npm i -g mintlify
 ```
 
+Install this repository's dependencies (`node_modules` is not committed):
+
+```
+npm install
+```
+
 Run the following command at the root of your documentation (where mint.json is)
 
 ```
