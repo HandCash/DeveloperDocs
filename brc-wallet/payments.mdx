@@ -59,7 +59,7 @@ const satoshis = funding.outputs.reduce((total, output) => total + output.satosh
 
 ## Send a payment
 
-Build the recipient locking script with your Bitcoin library, then let the wallet fund, sign, and broadcast:
+Build the recipient locking script with your Bitcoin SV library, then let the wallet fund, sign, and broadcast:
 
 ```typescript
 import { P2PKH, WalletClient } from '@bsv/sdk';
