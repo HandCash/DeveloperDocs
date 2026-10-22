@@ -1,6 +1,6 @@
 ---
 title: Tokens
-description: 'Read, mint, transfer, receive, and verify BSV-21 fungible tokens with the BRC wallet'
+description: 'Issue, mint, send, and read BNT tokens and items with the BRC wallet'
 ---
 
 <Warning>
@@ -9,231 +9,101 @@ description: 'Read, mint, transfer, receive, and verify BSV-21 fungible tokens w
 
 ## The model
 
-A fungible holding is a set of **one-satoshi tips**, each carrying an integer amount in base units. The wallet keeps them in storage basket `bsv21`, and a balance is the sum of the tips it holds for one token id.
+HandCash tokens are **Bitcoin Native Tokens (BNT)**, the open mode of the BRC-255 draft. The holder's signature alone moves an output, and the recipient checks every hop back to the deploy, so no indexer or issuer is trusted.
 
 | Concept | Value |
 |---------|-------|
-| Token id | The deploy output's outpoint, normalized as `<txid>_<vout>` |
-| Tip | A one-satoshi output carrying an amount of that token |
-| Amount | An integer in base units, as a string — apply `dec` only for display |
+| Asset id | 40 hex characters, fixed at deploy |
+| Kind | `token` (fungible) or `item` (a supply-1 deploy) |
+| Amount | A whole number of base units, as a string — apply `dec` only for display |
+| Filing | Tokens in `bntft`, items in `bntnft`; rows are tagged `bntft:<assetId>` or `bntnft:<assetId>` |
 
-The fungible-token path is **BSV-21 with BRC-162 binary value locks**. It provides the scaling model for token balances and transfers; there is no separate 1Sat fungible-token product surface.
+The wallet builds, signs, and checks every BNT transaction itself. Apps ask for it with the four methods below and never write, spend, or relinquish a BNT output directly.
 
-Token calls always prompt, and token view is a separate grant from item view.
+<Note>
+BSV-21 / BRC-162 tokens are not supported. Requests that name the `bsv21` basket, carry `bsv21` tags, or contain a BRC-162 lock return `400 ASSET_PROTOCOL_RETIRED`, and `p bsv21 …` baskets return `400 UNSUPPORTED_P_BASKET`.
+</Note>
 
-## Read balances
+## Read holdings
+
+`listBntAssets` returns every open asset this wallet holds, with its balance and supply policy:
+
+```typescript
+const { assets } = await wallet.listBntAssets();
+// [{ assetId, kind, mode, sym, name, dec, issuers, balance, outputs, authority, deploy, imageUrl, supply }]
+```
+
+To list the outputs behind a holding, use a token view basket. Token view is its own grant, separate from item view; a denied prompt returns `403 TOKEN_VIEW_DENIED`.
 
 | Basket | Required tag |
 |--------|--------------|
-| `p bsv21 all` | none |
-| `p bsv21 id` | `bsv21:<tokenId>` |
+| `p bntft all` | none |
+| `p bntft token` | `bntft:<assetId>` |
+| `p bntft id` | `id:<key>` |
 
 ```typescript
-const tokens = await wallet.listOutputs({
-  basket: 'p bsv21 all',
-  includeCustomInstructions: true,
-  limit: 50,
-  offset: 0
+const rows = await wallet.listOutputs({
+  basket: 'p bntft token',
+  tags: [`bntft:${assetId}`],
+  include: 'entire transactions'
 });
 ```
 
+BNT items are read through the item grant with `p bntnft …` and the same scopes as `p 1sat …` — see [Collectables](/brc-wallet/items).
+
+## Issue
+
 ```typescript
-const robot = await wallet.listOutputs({
-  basket: 'p bsv21 id',
-  tags: [`bsv21:${tokenId}`],
-  tagQueryMode: 'all',
-  includeCustomInstructions: true,
-  limit: 20
+const { assetId, txid } = await wallet.issueBntAsset({
+  kind: 'token',
+  sym: 'ROBOT',
+  supply: '1000000',
+  dec: 2
 });
 ```
 
-Sum the tips yourself; there is no per-token balance method. A third-party grant is an **allowlist of token ids**, so asking for `all` later never widens it — the user must approve each new token. `listOutputs({ basket: 'bsv21' })` returns `400 USE_PBSV21_SCOPE`.
+A token needs `sym`; an item needs `name`, has a supply of exactly 1, and may carry `content` and a `collection` (the asset id of a token whose authority you hold). The supply policy is fixed at deploy:
 
-## Token vocabulary
+| Policy | Arguments | Minting |
+|--------|-----------|---------|
+| Fixed | no `auth`, `max`, or `size` | refused with `fixed-supply` |
+| Open | `auth: true` | any amount |
+| Capped | `max` (units, supply included) and/or `size` (collection members) | up to the cap, then `over-cap` |
+| Open mint | `openMint: { count, amount }` on a token | anyone, `amount` units at a time, `count` times |
 
-### Tags
+Only open mode is issued today; `mode` other than `'open'` is refused.
 
-| Tag | Meaning |
-|-----|---------|
-| `bsv21` | Protocol marker |
-| `bsv21:<tokenId>` | Token id, the preferred form |
-| `amt:<integer>` | Face value of this tip in base units |
-| `op:<op>` | `deploy+mint`, `deploy+auth`, `mint`, `auth`, `transfer`, or `burn` |
-| `sym:<symbol>` | Ticker, lowercased, up to 32 characters |
-| `dec:<0-18>` | Display decimals |
-| `icon:<outpoint>` | Icon inscription output |
-| `issuer:<pubkey>` | Compressed issuer public key |
-| `cosign:<pubkey>` | Cosigner gate |
-| `id:<key>` | Wallet-assigned row key — **not** the token id |
-
-### `customInstructions`
-
-A JSON mirror of the protocol operation, which the wallet uses to index and display the tip:
-
-```json
-{
-  "p": "bsv-20",
-  "op": "transfer",
-  "id": "<tokenId>",
-  "amt": "2500",
-  "sym": "ROBOT",
-  "dec": 2,
-  "issuer": "<pubkey>",
-  "icon": "<outpoint>"
-}
-```
-
-`p` must be `bsv-20` for the mirror to parse. `amt` is required for any balance-bearing operation, `dec` may be `0`–`18`, and `maxSupply` is accepted as local remittance metadata only — it is not part of the on-chain BRC-162 output. Authority-only operations (`deploy+auth`, `auth`) carry no holdings and are not counted as balance.
-
-Symbol and decimals are **display metadata** carried by the deploy and the remittance. They are not a consensus rule, so never trust a ticker as a unique identifier — the token id is the identity.
-
-## Mint a token
-
-An identity-backed mint is a `createAction` with an output in basket `bsv21` whose operation is `deploy+mint`, `deploy+auth`, or `mint`:
+## Mint
 
 ```typescript
-const { txid } = await wallet.createAction({
-  description: 'Deploy and mint ROBOT',
-  labels: ['bsv21', 'handcash-mint-token'],
-  outputs: [
-    {
-      lockingScript: bsv21DeployMintScript, // BRC-162 binary value lock
-      satoshis: 1,
-      outputDescription: 'ROBOT deploy and mint',
-      basket: 'bsv21',
-      tags: ['bsv21', 'op:deploy+mint', 'sym:ROBOT', 'amt:1000000', 'dec:2'],
-      customInstructions: JSON.stringify({
-        p: 'bsv-20',
-        op: 'deploy+mint',
-        sym: 'ROBOT',
-        amt: '1000000',
-        dec: '2'
-      })
-    }
-  ]
+await wallet.mintBntAsset({ assetId, amount: '5000' });
+```
+
+For an open-mint token you do not issue, pass `deploy` (`txid_vout`) when this wallet has never seen the asset, or `tip` (any mint, `txid.vout`); the wallet follows its spends to the newest mint.
+
+## Send
+
+```typescript
+await wallet.transferBntAsset({
+  assetId,
+  recipient: recipientIdentityKey,
+  amount: '7500'
 });
 ```
 
-When the user approves, HandCash recognizes the mint as identity-backed and enriches it:
+The recipient is an identity key. The wallet delivers the transfer and its proof to the recipient's `bnt` message box, and the recipient's wallet checks it before filing. There is no `internalizeAction` step for the receiving app.
 
-- It writes the wallet's identity key into the `issuer:` tag and `customInstructions`.
-- It appends a **Sigma** signature to the deploy locking script when the action's first input is an output the wallet can attest to. Wallets that later see that signature show the token as issuer-attested.
-- It reuses an existing icon for the same issuer and symbol when you did not supply one.
+## Prompts and errors
 
-The wallet does **not** build the script from your tags. A deploy with an amount of zero is an authority lock and is refused on the value path, and a mint that spends existing tips without `inputBEEF` fails rather than proceeding blind. The prompt is titled **Mint token** and shows the symbol, the supply, and that Pay and auto-pay do not cover it.
-
-## Transfer tokens
-
-```typescript
-const { txid } = await wallet.createAction({
-  description: 'Send 25 ROBOT',
-  labels: ['bsv21', 'send-token'],
-  inputBEEF: tokenInputBeef,
-  inputs: selectedTips.map((tip) => ({
-    outpoint: tip.outpoint,
-    inputDescription: 'ROBOT tip',
-    unlockingScript: tip.unlockingScript
-  })),
-  outputs: [
-    {
-      lockingScript: recipientTransferScript,
-      satoshis: 1,
-      outputDescription: 'ROBOT transfer'
-      // No sender basket: this tip belongs to the recipient.
-    },
-    {
-      lockingScript: changeTransferScript,
-      satoshis: 1,
-      outputDescription: 'ROBOT change',
-      basket: 'bsv21',
-      tags: ['bsv21', `bsv21:${tokenId}`, 'amt:7500', 'sym:ROBOT', 'dec:2'],
-      customInstructions: JSON.stringify({
-        p: 'bsv-20',
-        op: 'transfer',
-        id: tokenId,
-        amt: '7500',
-        dec: 2
-      })
-    }
-  ]
-});
-```
-
-Invariants the wallet enforces, and your app must respect:
-
-1. **Conservation per token id** — base units out never exceed base units in. Never round.
-2. **Change is mandatory** when the selected tips exceed the amount you are sending. Dropping it destroys value.
-3. **Every tip is one satoshi.**
-4. **The payee output carries no sender basket**; only your change output goes back into `bsv21`.
-5. **Parent bodies must be provable.** Supply `inputBEEF` covering the spent tips, or verification fails closed.
-6. **Cosigned tips do not spend with a plain unlock**, and covenant-locked tips are refused outright.
-
-Failures are named rather than silent: insufficient units, a zero-amount authority spend, an invalid recipient, missing source transactions, conservation mismatches, and `BRC-176 prove failed` all surface as errors instead of a downgraded transaction.
-
-## Burn tokens
-
-A burn destroys base units: it spends tips, emits **no** payee token output, and optionally returns change to the holder. The satoshis behind the burned tips are recovered to the wallet. Burn amounts must be positive integers.
-
-## Receive tokens
-
-```typescript
-const { accepted } = await wallet.internalizeAction({
-  tx: atomicBeef,
-  description: 'Receive 25 ROBOT',
-  labels: ['bsv21', 'receive-token'],
-  outputs: [
-    {
-      outputIndex: 2,
-      protocol: 'basket insertion',
-      insertionRemittance: {
-        basket: 'bsv21',
-        tags: ['bsv21', `bsv21:${tokenId}`, 'amt:2500', 'sym:ROBOT', 'dec:2'],
-        customInstructions: JSON.stringify({
-          p: 'bsv-20',
-          op: 'transfer',
-          id: tokenId,
-          amt: '2500',
-          sym: 'ROBOT',
-          dec: 2
-        })
-      }
-    }
-  ]
-});
-```
-
-The named output must be one satoshi, must pay the wallet, and must decode as a BRC-162 value lock matching the same token id and amount. Anything else is refused with a named reason such as an ambiguous token output or no token tip paying this wallet.
-
-## Verification
-
-Token provenance is a BRC-176 walk: from a tip back to a fixed-supply deploy, checking that inputs cover outputs for that token id in every transaction along the way. It fails closed on a missing parent body, an over-transfer, a cycle, or an authority output.
-
-What that means for your app:
-
-- A tip the wallet produced on a send carries a proven subject BEEF.
-- Listing a holding does **not** prove it. Treat `issuerAttested` as an attestation that a signature matches the claimed issuer's address, not as a full supply audit.
-- A token with no symbol is displayed by a truncated token id, so ship a `sym:` tag if you want a readable name.
-
-## Release a tip
-
-```typescript
-await wallet.relinquishOutput({
-  basket: 'p bsv21 all',
-  output: tokenOutpoint
-});
-```
-
-This drops local tracking only — it does not spend or destroy the output — and prompts as **Release token**.
-
-## Not available to apps
+Issue, mint, and send each show the user an approval prompt. A refusal before anything is staged returns `400 BNT_<REASON>`, for example `BNT_BAD_ASSET_ARGS`, `BNT_FIXED_SUPPLY`, `BNT_OVER_CAP`, or `BNT_UNSUPPORTED_MODE`.
 
 | Attempt | Result |
 |---------|--------|
-| `listOutputs({ basket: 'bsv21' })` | `400 USE_PBSV21_SCOPE` |
-| `getTokenIcon` | HandCash hosts only, `403 MARKET_ORIGIN_DENIED` |
-| Auto-pay covering a token mint, send, or release | Always prompts |
-| Cosigned token sends through the wallet's own path | Not wired yet |
-| Treating a row `id:` tag as the token id | Wrong key; use `bsv21:<tokenId>` |
+| `createAction` spending a BNT output | `400 BNT_WALLET_ONLY` — use `transferBntAsset` |
+| `listOutputs({ basket: 'bntft' })` | `400 USE_TOKEN_SCOPE` |
+| `p bntft token` without a `bntft:` tag | `400 MISSING_TOKEN_SCOPE_TAG` |
+| Writing into `bntft` or `bntnft` | Refused; only the wallet files BNT outputs |
+| Countersigned (`iptft` / `iptnft`) transfers | Not supported yet |
 
 ## Next steps
 

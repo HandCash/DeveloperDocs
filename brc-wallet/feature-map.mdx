@@ -1,6 +1,6 @@
 ---
 title: Feature map
-description: The BRC wallet path to integrate today — auth, payments, items, and plain BSV-21 — and the Connect feature each call replaces
+description: The BRC wallet path to integrate today — auth, payments, items, and BNT tokens — and the Connect feature each call replaces
 ---
 
 <Warning>
@@ -51,7 +51,7 @@ Hand these four to a developer integrating today. Each one has HandCash behavior
 | Auth | `isAuthenticated`, then `waitForAuthentication` | The origin is the session. There is no `authToken` and no app secret. |
 | Payments | `createAction`, `signAction`, `abortAction`, `internalizeAction`, `listActions`, `listOutputs` on basket `default` | Amounts are satoshis. Auto-pay and the BRC-73 cap cover plain payments only. Retry `CHANGE_CHAINING_REQUIRED`. |
 | Items | `listOutputs` on `p 1sat …`, `createAction` into basket `1sat`, `internalizeAction` with `basket insertion` | Always prompts. The app builds the ordinal script. Reads return only what the user granted. The contract is BRC-147, 150, 164, and 165; see [The 1Sat stack](#the-1sat-stack). |
-| Plain BSV-21 | `listOutputs` on `p bsv21 …`, `createAction` into basket `bsv21`, `internalizeAction` into `bsv21` | The app builds the BRC-162 script. Change back into `bsv21` is mandatory. Cosigned tips are not this path: the wallet will not cosign, and a plain unlock is refused. |
+| Tokens | `listBntAssets`, `issueBntAsset`, `mintBntAsset`, `transferBntAsset`; reads on `p bntft …` | HandCash methods: feature-detect. The wallet builds and signs every BNT transaction; apps never write or spend a BNT output. BSV-21 / BRC-162 is not supported. |
 
 Ordinary signing rides along with auth when a back end needs proof the wallet holds the key: `getPublicKey`, `createSignature`, `verifySignature`, `encrypt`, `decrypt`, `createHmac`, `verifyHmac`. A `createSignature` whose `protocolID` is `[2, 'wallet identity proof']` is checked against the calling origin. Any other protocol is signed as a normal BRC-42 signature.
 
@@ -158,15 +158,16 @@ A view returns tags plus the wallet's `originVerified` verdict. Provenance BEEF 
 
 Task page: [Collectables](/brc-wallet/items) · [items.md](https://docs.handcash.io/brc-wallet/items.md)
 
-## Tokens (BSV-21)
+## Tokens (BNT)
 
 | Connect | BRC wallet | Notes |
 | --- | --- | --- |
-| No fungible token API in Connect | `wallet.listOutputs({ basket: 'p bsv21 all' })` or `basket: 'p bsv21 id', tags: ['bsv21:<tokenId>']` | Balances are the sum of `amt:` across held tips per token id. There is no per-token balance method; `basket: 'bsv21'` directly returns `400 USE_PBSV21_SCOPE`. |
-| — | `createAction` with a BRC-162 / BSV-21 output, basket `bsv21`, tags `bsv21`, `op:`, `sym:`, `amt:`, `dec:` | Mint and transfer are the same call with different scripts. Amount lives in the lock, the output is 1 satoshi, change back to `bsv21` is mandatory. |
-| — | `internalizeAction` with `basket insertion` into `bsv21` | The named output must be 1 sat, pay the wallet, and decode to the same token id and amount. Every output paying you in a self-send is custody. |
-| — | Cosigned tips | Not the integrator path. The wallet's own send refuses them with `cosigner_required`, and the bridge will not produce the cosigner signature. An app spends one only by supplying that unlock itself. |
-| — | Provenance | BRC-176 walk from tip to a fixed-supply deploy; `issuerAttested` is a Sigma signature check, not a supply audit. |
+| No fungible token API in Connect | `wallet.listBntAssets()` | Every open asset the wallet holds, with `balance` and `supply`. Output-level reads use `p bntft all`, or `p bntft token` with `bntft:<assetId>` tags; `basket: 'bntft'` directly returns `400 USE_TOKEN_SCOPE`. |
+| — | `issueBntAsset({ kind, sym or name, supply, … })` | Deploys an open token or item. The supply policy (fixed, open, capped, open mint) is fixed at deploy. |
+| — | `mintBntAsset({ assetId, amount })` | New units of a token you issued, or of an open-mint token. |
+| — | `transferBntAsset({ assetId, recipient, amount })` | The recipient is an identity key; the proof goes to their `bnt` message box and their wallet checks it. No `internalizeAction` step. |
+| — | Provenance | The recipient walks every hop back to the deploy and trusts no indexer or issuer (BRC-255 draft). |
+| — | BSV-21 / BRC-162 | Not supported. Requests return `400 ASSET_PROTOCOL_RETIRED` or `400 UNSUPPORTED_P_BASKET`. |
 
 Task page: [Tokens](/brc-wallet/tokens) · [tokens.md](https://docs.handcash.io/brc-wallet/tokens.md)
 
@@ -211,8 +212,8 @@ Full list with HTTP statuses: [Permissions and scopes](/brc-wallet/permissions) 
 Connect grew by adding endpoints: `pay`, then `getItemsInventory`, then `createItemsOrder`, each a new SDK function with its own shape. BRC-100 does not grow that way. The method list is fixed and small; new functionality arrives in three layers, and each layer has a different portability guarantee.
 
 ```
-Layer 3  Wallet-specific methods       getBalance, getClaimedCloudHandle, market*      HandCash only, feature-detect
-Layer 2  Protocols carried by Layer 1  BRC-29, 1Sat (147/150/164/165), BSV-21/162/176 Portable to any wallet that speaks the protocol
+Layer 3  Wallet-specific methods       getBalance, getClaimedCloudHandle, market*, *Bnt* HandCash only, feature-detect
+Layer 2  Protocols carried by Layer 1  BRC-29, 1Sat (147/150/164/165)                 Portable to any wallet that speaks the protocol
 Layer 1  BRC-100 core                  28 methods, getVersion reports the interface    Portable to every BRC-100 wallet
 ```
 
@@ -242,11 +243,10 @@ This is where features live. A payment, a collectable, and a fungible token are 
 | Transaction proofs | BRC-62 Atomic BEEF | `inputBEEF` on `createAction`, `tx` on `internalizeAction` |
 | Silent spending cap | BRC-73 | `spendingAuthorization` in your web `manifest.json` |
 | Collectables | 1Sat ordinals: BRC-147 basket profile, BRC-150 provenance, BRC-164 held-row key, BRC-165 permission grammar | Basket `1sat`, tags `ordinal`, `origin:`, `name:`, `app:`, `collection:`, `creator:`, `id:`; read scope `p 1sat <scope>`; spend label `p 1sat input id <key>`. See [The 1Sat stack](#the-1sat-stack). |
-| Fungible tokens | BSV-21 with BRC-162 value locks, BRC-176 provenance | Basket `bsv21`, tags `bsv21:`, `amt:`, `op:`, `sym:`, `dec:` |
 | Certificates | BRC-52 | Forwarded, not proven. Leave off the integrator path until a third-party call is shown succeeding. |
 | Catalog and overlay packs | BRC-230 | Not in this release. Shipping on `feature/brc-230-index-expansion`; the methods return `404 INDEX_EXPANSION_UNAVAILABLE` today |
 
-The permission grammar is part of this layer too. `p 1sat collection` and `p bsv21 id` are baskets in the BRC-100 sense — the wallet interprets them as scoped views. Another wallet may use a different grammar, so treat the scope string as a HandCash convention and the underlying `listOutputs` call as portable.
+The permission grammar is part of this layer too. `p 1sat collection` and `p bntft token` are baskets in the BRC-100 sense — the wallet interprets them as scoped views. Another wallet may use a different grammar, so treat the scope string as a HandCash convention and the underlying `listOutputs` call as portable.
 
 ### Layer 3: methods HandCash adds
 
@@ -309,7 +309,7 @@ async function spendableSats(wallet: WalletClient, hasGetBalance: boolean) {
 
 ### The rule for app authors
 
-Ship auth, payments, items, and plain BSV-21, plus ordinary signing when a back end must check the key. Pick those protocols from Layer 2. Use `getBalance` and `getClaimedCloudHandle` only behind a `404` check. Leave certificates, identity discovery, key-linkage reveals, and BRC-230 off the integration until this repo shows a third-party call succeeding. That is the point of not shipping a HandCash SDK for the BRC wallet: the calls above are BRC-100, and the rest is not ready to wrap.
+Ship auth, payments, and items, plus ordinary signing when a back end must check the key. Pick those protocols from Layer 2. Use `getBalance`, `getClaimedCloudHandle`, and the BNT token methods only behind a `404` check. Leave certificates, identity discovery, key-linkage reveals, and BRC-230 off the integration until this repo shows a third-party call succeeding. That is the point of not shipping a HandCash SDK for the BRC wallet: the calls above are BRC-100, and the rest is not ready to wrap.
 
 ## Transport
 

@@ -101,20 +101,22 @@ Reads of items, tokens, and catalog packs go through permission baskets, not sto
 | `p 1sat app` | One or more apps | `app:<id>` |
 | `p 1sat creator` | One or more creators | `creator:<id>` |
 | `p 1sat id` | Exact wallet rows | `id:<rowId>` |
-| `p bsv21 all` | Every token | none |
-| `p bsv21 id` | Specific tokens | `bsv21:<tokenId>` or `id:<tokenId>` |
+| `p bntnft …` | BNT items, with the same scopes as `p 1sat …` | as for `p 1sat …` |
+| `p bntft all` | Every BNT token | none |
+| `p bntft token` | Specific BNT tokens | `bntft:<assetId>` |
+| `p bntft id` | Exact wallet rows | `id:<key>` |
 | `p index read` | A catalog pack's cache | pack resolved from the basket |
 
-Scope tokens are lowercase and exact. Storage baskets (`1sat`, `bsv21`) are wallet-internal and refused here.
+Scope tokens are lowercase and exact. Storage baskets (`1sat`, `bntft`, `bntnft`) are wallet-internal and refused here. BSV-21 / BRC-162 is not supported: `p bsv21 …` returns `400 UNSUPPORTED_P_BASKET`.
 
 Where each form belongs:
 
 | Field | Use |
 |-------|-----|
 | `listOutputs({ basket })` | The scoped `p …` basket above |
-| `createAction` output `basket` | The storage basket: `1sat` or `bsv21` |
-| `internalizeAction` `insertionRemittance.basket` | The storage basket: `1sat` or `bsv21` |
-| `relinquishOutput({ basket })` | `p 1sat all` or `p bsv21 all` — scoped forms that need a tag cannot carry one here |
+| `createAction` output `basket` | The storage basket `1sat`; only the wallet files into `bntft` and `bntnft` |
+| `internalizeAction` `insertionRemittance.basket` | The storage basket `1sat` |
+| `relinquishOutput({ basket })` | `p 1sat all` — scoped forms that need a tag cannot carry one here. BNT outputs are never relinquished by apps. |
 
 ### What a grant actually returns
 
@@ -152,10 +154,11 @@ Reading a pack through `listOutputs` uses `p index read <packId>`; using `p inde
 | `403` | `INDEX_INSTALL_DENIED` / `INDEX_SYNC_DENIED` / `INDEX_READ_DENIED` / `OVERLAY_LOOKUP_DENIED` | The user declined a catalog request. |
 | `403` | `MARKET_ORIGIN_DENIED` / `MIGRATION_ORIGIN_DENIED` | Host-restricted method called from another origin. |
 | `409` | `ACTION_IN_PROGRESS` | The same market action is already running. |
-| `400` | `USE_P1SAT_SCOPE` / `USE_PBSV21_SCOPE` | You sent a storage basket where a scoped basket belongs. |
-| `400` | `INVALID_P1SAT_SCOPE` / `INVALID_PBSV21_SCOPE` | The scope token is not one of the allowed values. |
-| `400` | `MISSING_P1SAT_SCOPE_TAG` / `MISSING_PBSV21_SCOPE_TAG` | The scope needs at least one matching tag. |
-| `400` | `UNSUPPORTED_P_BASKET` | Only the `1sat`, `bsv21`, and `index` schemes exist. |
+| `400` | `USE_P1SAT_SCOPE` / `USE_TOKEN_SCOPE` | You sent a storage basket where a scoped basket belongs. |
+| `400` | `INVALID_P1SAT_SCOPE` / `INVALID_TOKEN_SCOPE` | The scope token is not one of the allowed values. |
+| `400` | `MISSING_P1SAT_SCOPE_TAG` / `MISSING_TOKEN_SCOPE_TAG` | The scope needs at least one matching tag. |
+| `400` | `UNSUPPORTED_P_BASKET` | Only the `1sat`, `bntnft`, `bntft`, `iptft`, `iptnft`, and `index` schemes exist. |
+| `400` | `ASSET_PROTOCOL_RETIRED` | The request names BSV-21 / BRC-162, which HandCash does not support. |
 | `400` | `INVALID_INDEX_BASKET` | Use the index methods, or `p index read <packId>`. |
 | `400` | `INVALID_P1SAT_SPEND` | A `p 1sat input id` label did not resolve to one held row that the action spends. |
 | `400` | `INSUFFICIENT_FUNDS` / `INSUFFICIENT_OR_STALE_FUNDS` / `DOUBLE_SPENT` / `CHANGE_CHAINING_REQUIRED` | The spend failed its pre-flight check. |
